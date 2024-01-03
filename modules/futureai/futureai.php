@@ -34,24 +34,35 @@ class FutureAi extends Module
         $sql = 'VOTRE REQUETE SQL ICI'; // Remplacez ceci par votre requête SQL
         $products = Db::getInstance()->executeS($sql);
 
+        $csvData = $this->generateCSV($products);
+
         $userToken = Configuration::get('USER_TOKEN');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
 
-        $csv = fopen('php://temp/maxmemory:'. (5*1024*1024), 'r+');
-        fputcsv($csv, array('Product Data', 'User Token', 'Chat Model Token'));
-        foreach ($products as $product) {
-            fputcsv($csv, array_merge($product, array($userToken, $chatModelToken)));
-        }
-        rewind($csv);
-
-        $this->postToApi(stream_get_contents($csv));
-        fclose($csv);
+        $this->postToApi($csvData, $userToken, $chatModelToken);
     }
 
-    private function postToApi($csvData) {
-        $ch = curl_init('http://future-ai:3000/api/source-chatbot');
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-        curl_setopt($ch, CURLOPT_POSTFIELDS, array('file' => $csvData));
+    private function generateCSV($data) {
+        $filePath = _PS_MODULE_DIR_.$this->name.'/products.csv';
+        $file = fopen($filePath, 'w');
+
+        foreach ($data as $row) {
+            fputcsv($file, $row);
+        }
+
+        fclose($file);
+        return $filePath;
+    }
+
+    private function postToApi($filePath, $userToken, $chatModelToken) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, 'http://future-ai:3000/api/source-chatbot');
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, [
+            'file' => new CURLFile($filePath),
+            'user_token' => $userToken,
+            'chat_model_token' => $chatModelToken
+        ]);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
         $result = curl_exec($ch);
@@ -59,8 +70,6 @@ class FutureAi extends Module
 
         return $result;
     }
-
-
 
     public function getContent() {
         $output = null;
