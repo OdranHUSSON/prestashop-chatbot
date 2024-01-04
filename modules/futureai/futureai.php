@@ -100,6 +100,9 @@ class FutureAi extends Module
             $futureAiUrl = Tools::getValue('FUTURE_AI_URL');
             $chatModelId = Tools::getValue('CHAT_MODEL_ID');
 
+            Configuration::updateValue('CHAT_MODEL_ID', $chatModelId);
+            Configuration::updateValue('FUTURE_AI_URL', $futureAiUrl);
+
             $this->sendProductsToApi($futureAiUrl, $chatModelId);
             $output .= $this->displayConfirmation('Les produits ont été synchronisés avec l\'API.');
         }
@@ -150,5 +153,21 @@ class FutureAi extends Module
 
         return $helper->generateForm($fields_form);
     }
+
+    public function hookDisplayFooter($params) {
+        $chatModelId = Configuration::get('CHAT_MODEL_ID');
+    
+        $this->context->smarty->assign(array(
+            'chatModelId' => $chatModelId,
+        ));
+    
+        return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
+    }
+
+    public function install() {
+        return parent::install() &&
+               $this->registerHook('displayFooter');
+    }
+    
 
 }
