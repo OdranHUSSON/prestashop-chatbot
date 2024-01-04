@@ -30,7 +30,7 @@ class FutureAi extends Module
         }
     }
 
-    public function sendProductsToApi() {
+    private function sendProductsToApi($futureAiUrl, $chatModelId) {
         $sql = "SELECT p.id_product, pl.name, pl.description, pl.description_short, 
                    p.reference, p.price, p.active, cl.link_rewrite AS category,
                    CONCAT('http://yourdomain.com/', cl.link_rewrite, '/', p.id_product, '-', pl.link_rewrite, '.html') AS product_url 
@@ -41,11 +41,9 @@ class FutureAi extends Module
 
         $products = Db::getInstance()->executeS($sql);
 
-        $futureAiUrl = Configuration::get('FUTURE_AI_URL');
-        $chatModelId = Configuration::get('CHAT_MODEL_ID');
-
+        $documentDatas = [];
         foreach ($products as $product) {
-            $dataToSend = [
+            $documentDatas[] = [
                 'id' => $product['id_product'],
                 'name' => $product['name'],
                 'description' => $product['description'],
@@ -57,48 +55,52 @@ class FutureAi extends Module
                 'product_url' => $product['product_url']
             ];
 
-            $this->postToApi($dataToSend, $futureAiUrl, $chatModelId);
+            if (count($documentDatas) === 100) {
+                $this->postToApi($documentDatas, $futureAiUrl, $chatModelId);
+                $dataToSend = [];
+            }
+        }
 
+        if (count($documentDatas) > 0) {
+            $this->postToApi($documentDatas, $futureAiUrl, $chatModelId);
         }
     }
 
-    private function generateCSV($data) {
-        $filePath = _PS_MODULE_DIR_.$this->name.'/products.csv';
-        $file = fopen($filePath, 'w');
-
-        foreach ($data as $row) {
-            fputcsv($file, $row);
-        }
-
-        fclose($file);
-        return $filePath;
-    }
-
-    private function postToApi($dataToSend, $futureAiUrl, $chatModelId) {
+    private function postToApi($documentDatas, $futureAiUrl, $chatModelId) {
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $futureAiUrl .'/api/source-chatbot');
+        curl_setopt($ch, CURLOPT_URL, $futureAiUrl .'/api/document/source');
         curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, [
-            'data' => $dataToSend,
-            'chat_model_id' => $chatModelId
-        ]);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+            'documentDatas' => $documentDatas,
+            'chatModelId' => $chatModelId
+        ]));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
+
         $result = curl_exec($ch);
-        if($result = curl_exec($ch) === false)
-        {
-            var_dump('Curl error: ' . curl_error($ch));
+        if($result === false) {
+            // Debug: CURL error
+             var_dump('Curl error: ' . curl_error($ch));
+        } else {
+            // Debug: Successful result
+             var_dump('CURL execution result:', $result);
         }
-        curl_close($ch); die;
+
+        curl_close($ch);
 
         return $result;
     }
+
 
     public function getContent() {
         $output = null;
 
         if (Tools::isSubmit('submit'.$this->name)) {
-            $this->sendProductsToApi();
+            $futureAiUrl = Tools::getValue('FUTURE_AI_URL');
+            $chatModelId = Tools::getValue('CHAT_MODEL_ID');
+
+            $this->sendProductsToApi($futureAiUrl, $chatModelId);
             $output .= $this->displayConfirmation('Les produits ont été synchronisés avec l\'API.');
         }
 
