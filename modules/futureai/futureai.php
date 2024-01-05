@@ -31,19 +31,30 @@ class FutureAi extends Module
     }
 
     private function sendProductsToApi($futureAiUrl, $chatModelId) {
-        $domain = Tools::getHttpHost(true).__PS_BASE_URI__;
         $sql = "SELECT p.id_product, pl.name, pl.description, pl.description_short, 
-                   p.reference, p.price, p.active, cl.link_rewrite AS category,
-                   CONCAT('" . $domain . "', cl.link_rewrite, '/', p.id_product, '-', pl.link_rewrite, '.html') AS product_url 
+                   p.reference, p.price, p.active, cl.link_rewrite AS category, i.id_image,
+                   CONCAT(cl.link_rewrite, '/', p.id_product, '-', pl.link_rewrite, '.html') AS product_url,
+                   CONCAT('/img/p/', i.id_image, '.jpg') AS image_url
             FROM " . _DB_PREFIX_ . "product p 
             JOIN " . _DB_PREFIX_ . "product_lang pl ON p.id_product = pl.id_product 
             JOIN " . _DB_PREFIX_ . "category_lang cl ON p.id_category_default = cl.id_category 
+            LEFT JOIN " . _DB_PREFIX_ . "image i ON p.id_product = i.id_product AND i.cover = 1
             WHERE pl.id_lang = 1 AND cl.id_lang = 1 AND p.active = 1";
 
         $products = Db::getInstance()->executeS($sql);
 
+        $baseLink = Tools::getHttpHost(true).__PS_BASE_URI__;
+
         $documentDatas = [];
         foreach ($products as $product) {
+            $productUrl = $baseLink . $product['category'] . '/' . $product['id_product'] . '-' . $product['link_rewrite'] . '.html';
+
+            if (!empty($product['image_url'])) {
+                $psProduct = new Product($product['id_product']);
+                $defaultLangId = Configuration::get('PS_LANG_DEFAULT');
+                $imageId = Product::getCover($psProduct)['id_image'];
+                $imageUrl = Context::getContext()->link->getImageLink($psProduct->link_rewrite[$defaultLangId], $imageId);            }
+
             $documentDatas[] = [
                 'id' => $product['id_product'],
                 'name' => $product['name'],
@@ -53,12 +64,13 @@ class FutureAi extends Module
                 'price' => $product['price'],
                 'active' => $product['active'],
                 'category' => $product['category'],
-                'product_url' => $product['product_url']
+                'product_url' => $productUrl,
+                'image_url' => $imageUrl
             ];
 
             if (count($documentDatas) === 100) {
                 $this->postToApi($documentDatas, $futureAiUrl, $chatModelId);
-                $dataToSend = [];
+                $documentDatas = [];
             }
         }
 
