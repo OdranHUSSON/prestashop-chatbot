@@ -1,16 +1,44 @@
 version: '3'
 services:
   prestashop:
+    container_name: prestashop
     image: prestashop/prestashop
     ports:
       - 8080:80
     environment:
       - DB_SERVER=prestashop_db
+      - PS_INSTALL_AUTO=1
+      - DB_NAME=prestashop
+      - DB_USER=prestashop
+      - DB_PASSWD=prestashop
+      - PS_DOMAIN=prestashop:8080
+      - PS_USER=admin
+      - PS_PASSWD=admin
+    volumes:
+      - ./modules/futureai:/var/www/html/modules/futureai
+      - psdata:/var/www/html
+    networks:
+      - ai-toolkit-network
+
   prestashop_db:
+    container_name: prestashop_db
     image: mysql:5.7
+    ports:
+      - 3306:3306
     environment:
       - MYSQL_ROOT_PASSWORD=admin
       - MYSQL_DATABASE=prestashop
       - MYSQL_USER=prestashop
       - MYSQL_PASSWORD=prestashop
+    networks:
+      - ai-toolkit-network
+    volumes:
+      - dbdata:/var/lib/mysql
 
+networks:
+  ai-toolkit-network:
+    external: true
+
+volumes:
+    dbdata:
+    psdata:

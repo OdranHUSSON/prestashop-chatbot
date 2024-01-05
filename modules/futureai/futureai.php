@@ -30,52 +30,80 @@ class FutureAi extends Module
         }
     }
 
-    public function sendProductsToApi() {
-        $sql = 'VOTRE REQUETE SQL ICI'; // Remplacez ceci par votre requête SQL
+    private function sendProductsToApi($futureAiUrl, $chatModelId) {
+        $sql = "SELECT p.id_product, pl.name, pl.description, pl.description_short, 
+                   p.reference, p.price, p.active, cl.link_rewrite AS category,
+                   CONCAT('http://yourdomain.com/', cl.link_rewrite, '/', p.id_product, '-', pl.link_rewrite, '.html') AS product_url 
+            FROM " . _DB_PREFIX_ . "product p 
+            JOIN " . _DB_PREFIX_ . "product_lang pl ON p.id_product = pl.id_product 
+            JOIN " . _DB_PREFIX_ . "category_lang cl ON p.id_category_default = cl.id_category 
+            WHERE pl.id_lang = 1 AND cl.id_lang = 1 AND p.active = 1";
+
         $products = Db::getInstance()->executeS($sql);
 
-        $csvData = $this->generateCSV($products);
+        $documentDatas = [];
+        foreach ($products as $product) {
+            $documentDatas[] = [
+                'id' => $product['id_product'],
+                'name' => $product['name'],
+                'description' => $product['description'],
+                'description_short' => $product['description_short'],
+                'reference' => $product['reference'],
+                'price' => $product['price'],
+                'active' => $product['active'],
+                'category' => $product['category'],
+                'product_url' => $product['product_url']
+            ];
 
-        $userToken = Configuration::get('USER_TOKEN');
-        $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
-
-        $this->postToApi($csvData, $userToken, $chatModelToken);
-    }
-
-    private function generateCSV($data) {
-        $filePath = _PS_MODULE_DIR_.$this->name.'/products.csv';
-        $file = fopen($filePath, 'w');
-
-        foreach ($data as $row) {
-            fputcsv($file, $row);
+            if (count($documentDatas) === 100) {
+                $this->postToApi($documentDatas, $futureAiUrl, $chatModelId);
+                $dataToSend = [];
+            }
         }
 
-        fclose($file);
-        return $filePath;
+        if (count($documentDatas) > 0) {
+            $this->postToApi($documentDatas, $futureAiUrl, $chatModelId);
+        }
     }
 
-    private function postToApi($filePath, $userToken, $chatModelToken) {
+    private function postToApi($documentDatas, $futureAiUrl, $chatModelId) {
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, 'http://future-ai:3000/api/source-chatbot');
+        curl_setopt($ch, CURLOPT_URL, $futureAiUrl .'/api/document/source');
         curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, [
-            'file' => new CURLFile($filePath),
-            'user_token' => $userToken,
-            'chat_model_token' => $chatModelToken
-        ]);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+            'documentDatas' => $documentDatas,
+            'chatModelId' => $chatModelId
+        ]));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
+
         $result = curl_exec($ch);
+        if($result === false) {
+            // Debug: CURL error
+             var_dump('Curl error: ' . curl_error($ch));
+        } else {
+            // Debug: Successful result
+             var_dump('CURL execution result:', $result);
+        }
+
         curl_close($ch);
 
         return $result;
     }
 
+
     public function getContent() {
         $output = null;
 
         if (Tools::isSubmit('submit'.$this->name)) {
-            $this->sendProductsToApi();
+            $futureAiUrl = Tools::getValue('FUTURE_AI_URL');
+            $chatModelId = Tools::getValue('CHAT_MODEL_ID');
+
+            Configuration::updateValue('CHAT_MODEL_ID', $chatModelId);
+            Configuration::updateValue('FUTURE_AI_URL', $futureAiUrl);
+
+            $this->sendProductsToApi($futureAiUrl, $chatModelId);
             $output .= $this->displayConfirmation('Les produits ont été synchronisés avec l\'API.');
         }
 
@@ -86,33 +114,33 @@ class FutureAi extends Module
         // Formulaires pour la configuration du module
         $default_lang = (int)Configuration::get('PS_LANG_DEFAULT');
 
-        $fields_form[0]['form'] = array(
-            'legend' => array(
+        $fields_form[0]['form'] = [
+            'legend' => [
                 'title' => $this->l('Paramètres'),
-            ),
-            'input' => array(
+            ],
+            'input' => [
                 // Ajouter vos champs de formulaire ici
-                array(
+                [
                     'type' => 'text',
-                    'label' => $this->l('User Token'),
-                    'name' => 'USER_TOKEN',
+                    'label' => $this->l('Future AI URL'),
+                    'name' => 'FUTURE_AI_URL',
                     'size' => 20,
                     'required' => true
-                ),
-                array(
+                ],
+                [
                     'type' => 'text',
-                    'label' => $this->l('Chat Model Token'),
-                    'name' => 'CHAT_MODEL_TOKEN',
+                    'label' => $this->l('Chat Model ID'),
+                    'name' => 'CHAT_MODEL_ID',
                     'size' => 20,
                     'required' => true
-                )
-            ),
-            'submit' => array(
+                ]
+            ],
+            'submit' => [
                 'title' => $this->l('Synchroniser'),
                 'class' => 'btn btn-default pull-right',
                 'name' => 'submit'.$this->name,
-            )
-        );
+            ]
+        ];
 
         $helper = new HelperForm();
         $helper->module = $this;
@@ -121,9 +149,25 @@ class FutureAi extends Module
         $helper->currentIndex = AdminController::$currentIndex.'&configure='.$this->name;
         $helper->title = $this->displayName;
         $helper->submit_action = 'submit'.$this->name;
-        $helper->fields_value = array(); // Ajouter les valeurs par défaut ici
+        $helper->fields_value = []; // Ajouter les valeurs par défaut ici
 
         return $helper->generateForm($fields_form);
     }
+
+    public function hookDisplayFooter($params) {
+        $chatModelId = Configuration::get('CHAT_MODEL_ID');
+    
+        $this->context->smarty->assign(array(
+            'chatModelId' => $chatModelId,
+        ));
+    
+        return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
+    }
+
+    public function install() {
+        return parent::install() &&
+               $this->registerHook('displayFooter');
+    }
+    
 
 }
