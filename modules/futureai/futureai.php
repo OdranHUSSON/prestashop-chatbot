@@ -31,9 +31,10 @@ class FutureAi extends Module
     }
 
     private function sendProductsToApi($futureAiUrl, $chatModelId) {
+        $domain = Tools::getHttpHost(true).__PS_BASE_URI__;
         $sql = "SELECT p.id_product, pl.name, pl.description, pl.description_short, 
                    p.reference, p.price, p.active, cl.link_rewrite AS category,
-                   CONCAT('http://yourdomain.com/', cl.link_rewrite, '/', p.id_product, '-', pl.link_rewrite, '.html') AS product_url 
+                   CONCAT('" . $domain . "', cl.link_rewrite, '/', p.id_product, '-', pl.link_rewrite, '.html') AS product_url 
             FROM " . _DB_PREFIX_ . "product p 
             JOIN " . _DB_PREFIX_ . "product_lang pl ON p.id_product = pl.id_product 
             JOIN " . _DB_PREFIX_ . "category_lang cl ON p.id_category_default = cl.id_category 
