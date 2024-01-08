@@ -112,13 +112,17 @@ class FutureAi extends Module
         if (Tools::isSubmit('submit'.$this->name)) {
             $futureAiUrl = Tools::getValue('FUTURE_AI_URL');
             $chatModelId = Tools::getValue('CHAT_MODEL_ID');
+            $token = Tools::getValue('FUTURE_AI_TOKEN');        
 
             Configuration::updateValue('CHAT_MODEL_ID', $chatModelId);
             Configuration::updateValue('FUTURE_AI_URL', $futureAiUrl);
+            Configuration::updateValue('FUTURE_AI_TOKEN', $token);
 
             $this->sendProductsToApi($futureAiUrl, $chatModelId);
             $output .= $this->displayConfirmation('Les produits ont été synchronisés avec l\'API.');
         }
+
+        $output .= $this->displayBackOfficeIframe();
 
         return $output.$this->displayForm();
     }
@@ -132,7 +136,6 @@ class FutureAi extends Module
                 'title' => $this->l('Paramètres'),
             ],
             'input' => [
-                // Ajouter vos champs de formulaire ici
                 [
                     'type' => 'text',
                     'label' => $this->l('Future AI URL'),
@@ -144,6 +147,13 @@ class FutureAi extends Module
                     'type' => 'text',
                     'label' => $this->l('Chat Model ID'),
                     'name' => 'CHAT_MODEL_ID',
+                    'size' => 20,
+                    'required' => true
+                ],
+                [
+                    'type' => 'text',
+                    'label' => $this->l('Token'),
+                    'name' => 'FUTURE_AI_TOKEN',
                     'size' => 20,
                     'required' => true
                 ]
@@ -162,7 +172,9 @@ class FutureAi extends Module
         $helper->currentIndex = AdminController::$currentIndex.'&configure='.$this->name;
         $helper->title = $this->displayName;
         $helper->submit_action = 'submit'.$this->name;
-        $helper->fields_value = []; // Ajouter les valeurs par défaut ici
+        $helper->fields_value['FUTURE_AI_URL'] = Configuration::get('FUTURE_AI_URL');
+        $helper->fields_value['CHAT_MODEL_ID'] = Configuration::get('CHAT_MODEL_ID');        
+        $helper->fields_value['FUTURE_AI_TOKEN'] = Configuration::get('FUTURE_AI_TOKEN');
 
         return $helper->generateForm($fields_form);
     }
@@ -175,6 +187,26 @@ class FutureAi extends Module
         ));
     
         return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
+    }
+
+    public function displayBackOfficeIframe() {
+        $chatModelId = Configuration::get('CHAT_MODEL_ID');
+        $token = Configuration::get('FUTURE_AI_TOKEN');
+        $url = Configuration::get('FUTURE_AI_URL');
+
+        // DEV ENVIROMENT REWRITE URL TO localhost:3000 from http://ai-toolkit-node:3000
+        if (strpos($url, 'http://ai-toolkit-node:3000') !== false) {
+            $url = str_replace('http://ai-toolkit-node:3000', 'http://localhost:3000', $url);
+        }        
+    
+        $iframeUrl = $url . "/embedded/$chatModelId/$token";
+        
+    
+        $this->context->smarty->assign(array(
+            'iframeUrl' => $iframeUrl,
+        ));
+    
+        return $this->display(__FILE__, 'views/templates/admin/backoffice.tpl');
     }
 
     public function install() {
