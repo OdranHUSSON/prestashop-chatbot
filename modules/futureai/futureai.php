@@ -184,35 +184,42 @@ class FutureAi extends Module
     
         $this->context->smarty->assign(array(
             'chatModelId' => $chatModelId,
+            'CDN' => 'http://localhost:3001'
         ));
     
         return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
     }
 
-    public function displayBackOfficeIframe() {
-        $chatModelId = Configuration::get('CHAT_MODEL_ID');
-        $token = Configuration::get('FUTURE_AI_TOKEN');
+    private function getApiHost() {
         $url = Configuration::get('FUTURE_AI_URL');
 
-        // DEV ENVIROMENT REWRITE URL TO localhost:3000 from http://ai-toolkit-node:3000
         if (strpos($url, 'http://ai-toolkit-node:3000') !== false) {
             $url = str_replace('http://ai-toolkit-node:3000', 'http://localhost:3000', $url);
         }        
+        return $url;
+    }
+
+    public function displayBackOfficeIframe() {
+        $chatModelId = Configuration::get('CHAT_MODEL_ID');
+        $token = Configuration::get('FUTURE_AI_TOKEN');
     
         $iframeUrl = $url . "/embedded/$chatModelId/$token";
         
     
         $this->context->smarty->assign(array(
+            'CDN' => 'http://localhost:3001',
             'iframeUrl' => $iframeUrl,
+            'chatModelId' => $chatModelId,
         ));
     
-        return $this->display(__FILE__, 'views/templates/admin/backoffice.tpl');
+        if (!empty($chatModelId) && !empty($token) && !empty($url)) {
+            return $this->display(__FILE__, 'views/templates/admin/backoffice.tpl');
+        }
     }
 
     public function install() {
         return parent::install() &&
                $this->registerHook('displayFooter');
     }
-    
 
 }
