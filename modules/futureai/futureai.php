@@ -30,7 +30,7 @@ class FutureAi extends Module
         }
     }
 
-    private function sendProductsToApi($futureAiUrl, $chatModelId) {
+    private function sendProductsToApi() {
         $sql = "SELECT p.id_product, pl.name, pl.description, pl.description_short, 
                    p.reference, p.price, p.active, cl.link_rewrite AS category, i.id_image,
                    CONCAT(cl.link_rewrite, '/', p.id_product, '-', pl.link_rewrite, '.html') AS product_url,
@@ -69,23 +69,29 @@ class FutureAi extends Module
             ];
 
             if (count($documentDatas) === 100) {
-                $this->postToApi($documentDatas, $futureAiUrl, $chatModelId);
+                $this->postToApi($documentDatas);
                 $documentDatas = [];
             }
         }
 
         if (count($documentDatas) > 0) {
-            $this->postToApi($documentDatas, $futureAiUrl, $chatModelId);
+            $this->postToApi($documentDatas);
         }
     }
 
-    private function postToApi($documentDatas, $futureAiUrl, $chatModelId) {
+    private function postToApi($documentDatas) {
+        $futureAiUrl = Configuration::get('FUTURE_AI_URL');
+        $chatModelId = Configuration::get('CHAT_MODEL_ID');
+        $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
+        var_dump($futureAiUrl, $chatModelId, $chatModelToken);
+
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $futureAiUrl .'/api/document/source');
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
             'documentDatas' => $documentDatas,
-            'chatModelId' => $chatModelId
+            'chatModelId' => $chatModelId,
+            'chatModelToken' => $chatModelToken
         ]));
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -116,10 +122,9 @@ class FutureAi extends Module
 
             Configuration::updateValue('FUTURE_AI_URL', $futureAiUrl);
             Configuration::updateValue('CHAT_MODEL_ID', $chatModelId);
-            Configuration::updateValue('CHAT_MODELchatModelId_TOKEN', $chatModelToken);
-            Configuration::updateValue('FUTURE_AI_TOKEN', $token);
+            Configuration::updateValue('CHAT_MODEL_TOKEN', $chatModelToken);
 
-            $this->sendProductsToApi($futureAiUrl, $chatModelId);
+            $this->sendProductsToApi();
             $output .= $this->displayConfirmation('Les produits ont été synchronisés avec l\'API.');
         }
 
@@ -141,7 +146,6 @@ class FutureAi extends Module
                     'type' => 'text',
                     'label' => $this->l('Future AI URL'),
                     'name' => 'FUTURE_AI_URL',
-                    'size' => 20,
                     'required' => true,
                     'desc' => $this->l('URL de l\'API Future AI'),
                     'value' => !empty(Configuration::get('FUTURE_AI_URL')) ? Configuration::get('FUTURE_AI_URL') : ''
@@ -149,8 +153,7 @@ class FutureAi extends Module
                 [
                     'type' => 'text',
                     'label' => $this->l('Chat Model ID'),
-                    'name' => 'CHAT_MODEL_TOKEN',
-                    'size' => 64,
+                    'name' => 'CHAT_MODEL_ID',
                     'required' => true,
                     'desc' => $this->l('ID du chat model'),
                     'value' => !empty(Configuration::get('CHAT_MODEL_ID')) ? Configuration::get('CHAT_MODEL_ID') : ''
@@ -181,7 +184,7 @@ class FutureAi extends Module
         $helper->submit_action = 'submit'.$this->name;
         $helper->fields_value['FUTURE_AI_URL'] = Configuration::get('FUTURE_AI_URL');
         $helper->fields_value['CHAT_MODEL_ID'] = Configuration::get('CHAT_MODEL_ID');
-        $helper->fields_value['FUTURE_AI_TOKEN'] = Configuration::get('FUTURE_AI_TOKEN');
+        $helper->fields_value['CHAT_MODEL_TOKEN'] = Configuration::get('CHAT_MODEL_TOKEN');
 
         return $helper->generateForm($fields_form);
     }
@@ -208,9 +211,9 @@ class FutureAi extends Module
 
     public function displayBackOfficeIframe() {
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
-        $token = Configuration::get('FUTURE_AI_TOKEN');
+        $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
 
-        $iframeUrl = $this->getApiHost() .  "/embedded/$chatModelId/$token";
+        $iframeUrl = $this->getApiHost() .  "/embedded/$chatModelId/$chatModelToken";
 
 
         $this->context->smarty->assign(array(
@@ -219,7 +222,7 @@ class FutureAi extends Module
             'chatModelId' => $chatModelId,
         ));
 
-        if (!empty($chatModelId) && !empty($token)) {
+        if (!empty($chatModelId) && !empty($chatModelToken)) {
             return $this->display(__FILE__, 'views/templates/admin/backoffice.tpl');
         }
     }
