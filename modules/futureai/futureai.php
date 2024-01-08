@@ -112,10 +112,11 @@ class FutureAi extends Module
         if (Tools::isSubmit('submit'.$this->name)) {
             $futureAiUrl = Tools::getValue('FUTURE_AI_URL');
             $chatModelId = Tools::getValue('CHAT_MODEL_ID');
-            $token = Tools::getValue('FUTURE_AI_TOKEN');        
+            $chatModelToken = Tools::getValue('CHAT_MODEL_TOKEN');
 
-            Configuration::updateValue('CHAT_MODEL_ID', $chatModelId);
             Configuration::updateValue('FUTURE_AI_URL', $futureAiUrl);
+            Configuration::updateValue('CHAT_MODEL_ID', $chatModelId);
+            Configuration::updateValue('CHAT_MODELchatModelId_TOKEN', $chatModelToken);
             Configuration::updateValue('FUTURE_AI_TOKEN', $token);
 
             $this->sendProductsToApi($futureAiUrl, $chatModelId);
@@ -141,22 +142,28 @@ class FutureAi extends Module
                     'label' => $this->l('Future AI URL'),
                     'name' => 'FUTURE_AI_URL',
                     'size' => 20,
-                    'required' => true
+                    'required' => true,
+                    'desc' => $this->l('URL de l\'API Future AI'),
+                    'value' => !empty(Configuration::get('FUTURE_AI_URL')) ? Configuration::get('FUTURE_AI_URL') : ''
                 ],
                 [
                     'type' => 'text',
                     'label' => $this->l('Chat Model ID'),
-                    'name' => 'CHAT_MODEL_ID',
-                    'size' => 20,
-                    'required' => true
+                    'name' => 'CHAT_MODEL_TOKEN',
+                    'size' => 64,
+                    'required' => true,
+                    'desc' => $this->l('ID du chat model'),
+                    'value' => !empty(Configuration::get('CHAT_MODEL_ID')) ? Configuration::get('CHAT_MODEL_ID') : ''
                 ],
                 [
                     'type' => 'text',
-                    'label' => $this->l('Token'),
-                    'name' => 'FUTURE_AI_TOKEN',
-                    'size' => 20,
-                    'required' => true
-                ]
+                    'label' => $this->l('Chat Model Token'),
+                    'name' => 'CHAT_MODEL_TOKEN',
+                    'size' => 64,
+                    'required' => true,
+                    'desc' => $this->l('Token du chat model'),
+                    'value' => !empty(Configuration::get('CHAT_MODEL_TOKEN')) ? Configuration::get('CHAT_MODEL_TOKEN') : ''
+                ],
             ],
             'submit' => [
                 'title' => $this->l('Synchroniser'),
@@ -173,7 +180,7 @@ class FutureAi extends Module
         $helper->title = $this->displayName;
         $helper->submit_action = 'submit'.$this->name;
         $helper->fields_value['FUTURE_AI_URL'] = Configuration::get('FUTURE_AI_URL');
-        $helper->fields_value['CHAT_MODEL_ID'] = Configuration::get('CHAT_MODEL_ID');        
+        $helper->fields_value['CHAT_MODEL_ID'] = Configuration::get('CHAT_MODEL_ID');
         $helper->fields_value['FUTURE_AI_TOKEN'] = Configuration::get('FUTURE_AI_TOKEN');
 
         return $helper->generateForm($fields_form);
@@ -181,7 +188,7 @@ class FutureAi extends Module
 
     public function hookDisplayFooter($params) {
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
-    
+
         $this->context->smarty->assign(array(
             'chatModelId' => $chatModelId,
             'CDN' => 'http://localhost:3001'
@@ -195,23 +202,23 @@ class FutureAi extends Module
 
         if (strpos($url, 'http://ai-toolkit-node:3000') !== false) {
             $url = str_replace('http://ai-toolkit-node:3000', 'http://localhost:3000', $url);
-        }        
+        }
         return $url;
     }
 
     public function displayBackOfficeIframe() {
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $token = Configuration::get('FUTURE_AI_TOKEN');
-    
+
         $iframeUrl = $this->getApiHost() .  "/embedded/$chatModelId/$token";
-        
-    
+
+
         $this->context->smarty->assign(array(
             'CDN' => 'http://localhost:3001',
             'iframeUrl' => $iframeUrl,
             'chatModelId' => $chatModelId,
         ));
-    
+
         if (!empty($chatModelId) && !empty($token)) {
             return $this->display(__FILE__, 'views/templates/admin/backoffice.tpl');
         }
