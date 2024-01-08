@@ -203,7 +203,7 @@ class FutureAi extends Module
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $token = Configuration::get('FUTURE_AI_TOKEN');
     
-        $iframeUrl = $url . "/embedded/$chatModelId/$token";
+        $iframeUrl = $this->getApiHost() .  "/embedded/$chatModelId/$token";
         
     
         $this->context->smarty->assign(array(
@@ -212,7 +212,7 @@ class FutureAi extends Module
             'chatModelId' => $chatModelId,
         ));
     
-        if (!empty($chatModelId) && !empty($token) && !empty($url)) {
+        if (!empty($chatModelId) && !empty($token)) {
             return $this->display(__FILE__, 'views/templates/admin/backoffice.tpl');
         }
     }
