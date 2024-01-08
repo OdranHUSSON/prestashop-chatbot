@@ -83,7 +83,6 @@ class FutureAi extends Module
         $futureAiUrl = Configuration::get('FUTURE_AI_URL');
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
-        var_dump($futureAiUrl, $chatModelId, $chatModelToken);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $futureAiUrl .'/api/document/source');
