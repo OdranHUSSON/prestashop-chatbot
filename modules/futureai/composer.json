@@ -1,0 +1,19 @@
+{
+    "name": "prestashop/futureai",
+    "autoload": {
+        "psr-4": {
+            "Prestashop\\Futureai\\": "src/"
+        },
+        "classmap": [
+            "futureai.php",
+            "classes/"
+        ],
+        "exclude-from-classmap": []
+    },
+    "require": {},
+    "config": {
+        "preferred-install": "dist",
+        "prepend-autoloader": false
+    },
+    "type": "prestashop-module"
+}
