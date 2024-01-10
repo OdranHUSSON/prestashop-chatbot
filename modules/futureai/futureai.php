@@ -114,10 +114,12 @@ class FutureAi extends Module
 
     public function hookDisplayFooter($params) {
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
+        $lang = $this->context->language->iso_code;
 
         $this->context->smarty->assign(array(
             'chatModelId' => $chatModelId,
-            'CDN' => 'http://localhost:3001'
+            'CDN' => 'http://localhost:3001',
+            'lang' => $lang,
         ));
     
         return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
@@ -135,14 +137,16 @@ class FutureAi extends Module
     public function displayBackOfficeIframe() {
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
+        $lang = $this->context->language->iso_code;
 
-        $iframeUrl = $this->getApiHost() .  "/embedded/$chatModelId/$chatModelToken";
+        $iframeUrl = $this->getApiHost() .  "/$lang/embedded/$chatModelId/$chatModelToken";
 
 
         $this->context->smarty->assign(array(
             'CDN' => 'http://localhost:3001',
             'iframeUrl' => $iframeUrl,
             'chatModelId' => $chatModelId,
+            'lang' => $lang,
         ));
 
         if (!empty($chatModelId) && !empty($chatModelToken)) {
