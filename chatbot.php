@@ -29,7 +29,7 @@ class Chatbot extends Module
 
     public function hookDisplayFooter($params)
     {
-        return $this->display(__FILE__, 'views/templates/front/chatbot.tpl');
+        return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
     }
 
     public function getContent()
