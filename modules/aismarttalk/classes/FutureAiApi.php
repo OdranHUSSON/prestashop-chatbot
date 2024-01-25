@@ -1,6 +1,6 @@
 <?php
 
-namespace PrestaShop\FutureAi;
+namespace PrestaShop\AiSmartTalk;
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -73,12 +73,12 @@ class FutureAiApi extends Module
     }
 
     private function postToApi($documentDatas) {
-        $futureAiUrl = Configuration::get('FUTURE_AI_URL');
+        $aiSmartTalkUrl = Configuration::get('AI_SMART_TALK_URL');
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
 
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $futureAiUrl .'/api/document/source');
+        curl_setopt($ch, CURLOPT_URL, $aiSmartTalkUrl .'/api/document/source');
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
             'documentDatas' => $documentDatas,

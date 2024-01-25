@@ -5,16 +5,16 @@ if (!defined('_PS_VERSION_')) {
 
 require_once dirname(__FILE__) . '/vendor/autoload.php';
 
-use PrestaShop\FutureAi\FutureAiApi;
+use PrestaShop\AiSmartTalk\FutureAiApi;
 
-class FutureAi extends Module
+class AiSmartTalk extends Module
 {
     public function __construct()
     {
-        $this->name = 'futureai';
+        $this->name = 'aismarttalk';
         $this->tab = 'front_office_features';
         $this->version = '1.0.0';
-        $this->author = 'Future AI corp';
+        $this->author = 'AI SmartTalk';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = [
             'min' => '1.7.0.0',
@@ -24,25 +24,25 @@ class FutureAi extends Module
 
         parent::__construct();
 
-        $this->displayName = $this->trans('Future AI', [], 'Modules.Futureai.Admin');
+        $this->displayName = $this->trans('AI SmartTalk', [], 'Modules.Futureai.Admin');
         $this->description = $this->trans('Best chatbot ever.', [], 'Modules.Futureai.Admin');
 
         $this->confirmUninstall = $this->trans('Are you sure you want to uninstall?', [], 'Modules.Futureai.Admin');
 
-        if (!Configuration::get('FUTUREAI_NAME')) {
-            $this->warning = $this->trans('No name provided', [], 'Modules.Futureai.Admin');
-        }
+        Configuration::updateValue('AI_SMART_TALK_URL', 'http://ai-toolkit-node:3000');
+
+//        if (!Configuration::get('FUTUREAI_NAME')) {
+//            $this->warning = $this->trans('No name provided', [], 'Modules.Futureai.Admin');
+//        }
     }
 
     public function getContent() {
         $output = null;
 
         if (Tools::isSubmit('submit'.$this->name)) {
-            $futureAiUrl = Tools::getValue('FUTURE_AI_URL');
             $chatModelId = Tools::getValue('CHAT_MODEL_ID');
             $chatModelToken = Tools::getValue('CHAT_MODEL_TOKEN');
 
-            Configuration::updateValue('FUTURE_AI_URL', $futureAiUrl);
             Configuration::updateValue('CHAT_MODEL_ID', $chatModelId);
             Configuration::updateValue('CHAT_MODEL_TOKEN', $chatModelToken);
 
@@ -65,14 +65,6 @@ class FutureAi extends Module
                 'title' => $this->l('Paramètres'),
             ],
             'input' => [
-                [
-                    'type' => 'text',
-                    'label' => $this->l('Future AI URL'),
-                    'name' => 'FUTURE_AI_URL',
-                    'required' => true,
-                    'desc' => $this->l('URL de l\'API Future AI'),
-                    'value' => !empty(Configuration::get('FUTURE_AI_URL')) ? Configuration::get('FUTURE_AI_URL') : ''
-                ],
                 [
                     'type' => 'text',
                     'label' => $this->l('Chat Model ID'),
@@ -105,7 +97,7 @@ class FutureAi extends Module
         $helper->currentIndex = AdminController::$currentIndex.'&configure='.$this->name;
         $helper->title = $this->displayName;
         $helper->submit_action = 'submit'.$this->name;
-        $helper->fields_value['FUTURE_AI_URL'] = Configuration::get('FUTURE_AI_URL');
+        $helper->fields_value['AI_SMART_TALK_URL'] = Configuration::get('AI_SMART_TALK_URL');
         $helper->fields_value['CHAT_MODEL_ID'] = Configuration::get('CHAT_MODEL_ID');
         $helper->fields_value['CHAT_MODEL_TOKEN'] = Configuration::get('CHAT_MODEL_TOKEN');
 
@@ -126,7 +118,7 @@ class FutureAi extends Module
     }
 
     private function getApiHost() {
-        $url = Configuration::get('FUTURE_AI_URL');
+        $url = Configuration::get('AI_SMART_TALK_URL');
 
         if (strpos($url, 'http://ai-toolkit-node:3000') !== false) {
             $url = str_replace('http://ai-toolkit-node:3000', 'http://localhost:3000', $url);

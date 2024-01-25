@@ -9,21 +9,21 @@ class ComposerStaticInit1a64e4a2bee93f2d2c517a3b98c5161e
     public static $prefixLengthsPsr4 = array (
         'P' => 
         array (
-            'Prestashop\\Futureai\\' => 20,
+            'Prestashop\\AiSmartTalk\\' => 23,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'Prestashop\\Futureai\\' => 
+        'Prestashop\\AiSmartTalk\\' => 
         array (
             0 => __DIR__ . '/../..' . '/src',
         ),
     );
 
     public static $classMap = array (
+        'AiSmartTalk' => __DIR__ . '/../..' . '/aismarttalk.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
-        'FutureAi' => __DIR__ . '/../..' . '/futureai.php',
-        'PrestaShop\\FutureAi\\FutureAiApi' => __DIR__ . '/../..' . '/classes/FutureAiApi.php',
+        'PrestaShop\\AiSmartTalk\\FutureAiApi' => __DIR__ . '/../..' . '/classes/FutureAiApi.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

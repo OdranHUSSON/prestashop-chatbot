@@ -1,11 +1,11 @@
 {
-    "name": "prestashop/futureai",
+    "name": "prestashop/aismarttalk",
     "autoload": {
         "psr-4": {
-            "Prestashop\\Futureai\\": "src/"
+            "Prestashop\\AiSmartTalk\\": "src/"
         },
         "classmap": [
-            "futureai.php",
+            "aismarttalk.php",
             "classes/"
         ],
         "exclude-from-classmap": []
