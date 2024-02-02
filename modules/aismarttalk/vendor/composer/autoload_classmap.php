@@ -6,7 +6,7 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
+    'AiSmartTalk' => $baseDir . '/aismarttalk.php',
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
-    'FutureAi' => $baseDir . '/futureai.php',
-    'PrestaShop\\FutureAi\\FutureAiApi' => $baseDir . '/classes/FutureAiApi.php',
+    'PrestaShop\\AiSmartTalk\\FutureAiApi' => $baseDir . '/classes/FutureAiApi.php',
 );

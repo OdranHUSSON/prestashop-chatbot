@@ -1,6 +1,6 @@
 <?php
 
-namespace PrestaShop\FutureAi;
+namespace PrestaShop\AiSmartTalk;
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -20,7 +20,7 @@ class FutureAiApi extends Module
 {
     public function __invoke()
     {
-        $this->sendProductsToApi();
+        return $this->sendProductsToApi();
     }
 
     private function sendProductsToApi() {
@@ -62,23 +62,30 @@ class FutureAiApi extends Module
             ];
 
             if (count($documentDatas) === 100) {
-                $this->postToApi($documentDatas);
+                if (false === $this->postToApi($documentDatas)) {
+                    return false;
+                }
+
                 $documentDatas = [];
             }
         }
 
         if (count($documentDatas) > 0) {
-            $this->postToApi($documentDatas);
+            if (false === $this->postToApi($documentDatas)) {
+                return false;
+            }
         }
+
+        return true;
     }
 
     private function postToApi($documentDatas) {
-        $futureAiUrl = Configuration::get('FUTURE_AI_URL');
+        $aiSmartTalkUrl = Configuration::get('AI_SMART_TALK_URL');
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
 
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $futureAiUrl .'/api/document/source');
+        curl_setopt($ch, CURLOPT_URL, $aiSmartTalkUrl .'/api/document/source');
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
             'documentDatas' => $documentDatas,
@@ -92,13 +99,18 @@ class FutureAiApi extends Module
         $result = curl_exec($ch);
         if($result === false) {
             // Debug: CURL error
-            var_dump('Curl error: ' . curl_error($ch));
+            Configuration::updateValue('AI_SMART_TALK_ERROR', curl_error($ch));
         } else {
-            // Debug: Successful result
-            var_dump('CURL execution result:', $result);
+            Configuration::deleteByName('AI_SMART_TALK_ERROR');
         }
 
         curl_close($ch);
+
+        $response = json_decode($result, true);
+        if (isset($response['status']) && $response['status'] == 'error') {
+            Configuration::updateValue('AI_SMART_TALK_ERROR', $response['message']);
+            return false;
+        }
 
         return $result;
     }

@@ -6,5 +6,5 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'Prestashop\\Futureai\\' => array($baseDir . '/src'),
+    'Prestashop\\AiSmartTalk\\' => array($baseDir . '/src'),
 );

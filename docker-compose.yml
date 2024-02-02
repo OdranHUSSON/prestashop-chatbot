@@ -15,7 +15,7 @@ services:
       - PS_USER=admin
       - PS_PASSWD=admin
     volumes:
-      - ./modules/futureai:/var/www/html/modules/futureai
+      - ./modules/aismarttalk:/var/www/html/modules/aismarttalk
       - psdata:/var/www/html
     networks:
       - ai-toolkit-network
