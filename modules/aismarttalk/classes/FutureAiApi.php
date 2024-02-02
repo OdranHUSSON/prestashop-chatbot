@@ -99,12 +99,18 @@ class FutureAiApi extends Module
         $result = curl_exec($ch);
         if($result === false) {
             // Debug: CURL error
-            Configuration::updateValue('AI_SMART_TALK_CURL_ERROR', curl_error($ch));
+            Configuration::updateValue('AI_SMART_TALK_ERROR', curl_error($ch));
         } else {
-            Configuration::deleteByName('AI_SMART_TALK_CURL_ERROR');
+            Configuration::deleteByName('AI_SMART_TALK_ERROR');
         }
 
         curl_close($ch);
+
+        $response = json_decode($result, true);
+        if (isset($response['status']) && $response['status'] == 'error') {
+            Configuration::updateValue('AI_SMART_TALK_ERROR', $response['message']);
+            return false;
+        }
 
         return $result;
     }

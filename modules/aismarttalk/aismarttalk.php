@@ -30,18 +30,14 @@ class AiSmartTalk extends Module
         $this->confirmUninstall = $this->trans('Are you sure you want to uninstall?', [], 'Modules.Futureai.Admin');
 
         Configuration::updateValue('AI_SMART_TALK_URL', 'http://ai-toolkit-node:3000');
-
-//        if (!Configuration::get('FUTUREAI_NAME')) {
-//            $this->warning = $this->trans('No name provided', [], 'Modules.Futureai.Admin');
-//        }
     }
 
     public function getContent() {
         $output = null;
 
+        $output .= $this->handleForm();
         $output .= $this->getConcentInfoIfNotConfigured();
         $output .= $this->displayForm();
-        $output .= $this->handleForm();
         $output .= $this->displayBackOfficeIframe();
         $output .= $this->isConfigured() ? $this->displayResetButton() : ''; // Afficher le bouton si configuré
 
@@ -162,13 +158,14 @@ class AiSmartTalk extends Module
 
     private function isConfigured()
     {
-        return !empty(Configuration::get('CHAT_MODEL_ID')) && !empty(Configuration::get('CHAT_MODEL_TOKEN'));
+        return !empty(Configuration::get('CHAT_MODEL_ID')) && !empty(Configuration::get('CHAT_MODEL_TOKEN')) && empty(Configuration::get('AI_SMART_TALK_ERROR'));
     }
 
     private function handleForm()
     {
         $output = '';
         if (Tools::isSubmit('submit'.$this->name)) {
+
             $chatModelId = Tools::getValue('CHAT_MODEL_ID');
             $chatModelToken = Tools::getValue('CHAT_MODEL_TOKEN');
 
@@ -182,7 +179,7 @@ class AiSmartTalk extends Module
                 $output .= $this->displayConfirmation('Les produits ont été synchronisés avec l\'API.');
             } else {
                 $output .= $this->displayError('Une erreur est survenue lors de la synchronisation avec l\'API.');
-                $output .= $this->displayError(Configuration::get('AI_SMART_TALK_CURL_ERROR'));
+                $output .= Configuration::get('AI_SMART_TALK_ERROR') ? $this->displayError(Configuration::get('AI_SMART_TALK_ERROR')) : '';
             }
         }
 
@@ -192,20 +189,19 @@ class AiSmartTalk extends Module
     private function displayResetButton() {
         // return a button to reset the module calling reset method then reload the current page
         $this->reset();
-        return "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-right'>Reset</a>";
+        return "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-right'>Charger un autre modèle de chat</a>";
     }
 
     public function uninstall()
     {
-        if (!parent::uninstall() ||
-            !Configuration::deleteByName('CHAT_MODEL_ID') || !Configuration::deleteByName('CHAT_MODEL_TOKEN')) {
+        if (!parent::uninstall()) {
             return false;
         }
 
         return true;
     }
 
-    public function reset()
+    private function reset()
     {
         if (!$this->uninstall()) {
             return false;
@@ -213,6 +209,10 @@ class AiSmartTalk extends Module
         if (!$this->install()) {
             return false;
         }
+
+        Configuration::deleteByName('CHAT_MODEL_ID');
+        Configuration::deleteByName('CHAT_MODEL_TOKEN');
+
         // Additional reset logic here
         return true;
     }
