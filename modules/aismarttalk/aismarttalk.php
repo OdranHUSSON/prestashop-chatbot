@@ -39,24 +39,21 @@ class AiSmartTalk extends Module
     public function getContent() {
         $output = null;
 
-        if (Tools::isSubmit('submit'.$this->name)) {
-            $chatModelId = Tools::getValue('CHAT_MODEL_ID');
-            $chatModelToken = Tools::getValue('CHAT_MODEL_TOKEN');
-
-            Configuration::updateValue('CHAT_MODEL_ID', $chatModelId);
-            Configuration::updateValue('CHAT_MODEL_TOKEN', $chatModelToken);
-
-            $api = new FutureAiApi();
-            $api();
-            $output .= $this->displayConfirmation('Les produits ont été synchronisés avec l\'API.');
-        }
-
+        $output .= $this->getConcentInfoIfNotConfigured();
+        $output .= $this->displayForm();
+        $output .= $this->handleForm();
         $output .= $this->displayBackOfficeIframe();
+        $output .= $this->isConfigured() ? $this->displayResetButton() : ''; // Afficher le bouton si configuré
 
-        return $output.$this->displayForm();
+        return $output;
     }
 
     public function displayForm() {
+        // If already configured, no need to display the form
+        if ($this->isConfigured() && empty(Configuration::get(''))) {
+            return '';
+        }
+
         // Formulaires pour la configuration du module
         $default_lang = (int)Configuration::get('PS_LANG_DEFAULT');
 
@@ -133,7 +130,6 @@ class AiSmartTalk extends Module
 
         $iframeUrl = $this->getApiHost() .  "/$lang/embedded/$chatModelId/$chatModelToken";
 
-
         $this->context->smarty->assign(array(
             'CDN' => 'http://localhost:3001',
             'iframeUrl' => $iframeUrl,
@@ -141,7 +137,7 @@ class AiSmartTalk extends Module
             'lang' => $lang,
         ));
 
-        if (!empty($chatModelId) && !empty($chatModelToken)) {
+        if ($this->isConfigured()) {
             return $this->display(__FILE__, 'views/templates/admin/backoffice.tpl');
         }
     }
@@ -149,6 +145,76 @@ class AiSmartTalk extends Module
     public function install() {
         return parent::install() &&
                $this->registerHook('displayFooter');
+    }
+
+    private function getConcentInfoIfNotConfigured()
+    {
+        $output = '';
+        if (!$this->isConfigured()) {
+            $output .= "<div class='alert alert-info'>
+                            Veuillez renseigner les paramètres du chat model. <br>
+                            Si vous n'avez pas encore de compte <a target='_blank' href='".Configuration::get('AI_SMART_TALK_URL')."'>AI SmartTalk</a>, vous pouvez en créer un <a target='_blank' href='".Configuration::get('AI_SMART_TALK_URL')."'>ici</a>
+                       </div>";
+        }
+
+        return $output;
+    }
+
+    private function isConfigured()
+    {
+        return !empty(Configuration::get('CHAT_MODEL_ID')) && !empty(Configuration::get('CHAT_MODEL_TOKEN'));
+    }
+
+    private function handleForm()
+    {
+        $output = '';
+        if (Tools::isSubmit('submit'.$this->name)) {
+            $chatModelId = Tools::getValue('CHAT_MODEL_ID');
+            $chatModelToken = Tools::getValue('CHAT_MODEL_TOKEN');
+
+            Configuration::updateValue('CHAT_MODEL_ID', $chatModelId);
+            Configuration::updateValue('CHAT_MODEL_TOKEN', $chatModelToken);
+
+            $api = new FutureAiApi();
+            $isSynch = $api();
+
+            if (true === $isSynch) {
+                $output .= $this->displayConfirmation('Les produits ont été synchronisés avec l\'API.');
+            } else {
+                $output .= $this->displayError('Une erreur est survenue lors de la synchronisation avec l\'API.');
+                $output .= $this->displayError(Configuration::get('AI_SMART_TALK_CURL_ERROR'));
+            }
+        }
+
+        return $output;
+    }
+
+    private function displayResetButton() {
+        // return a button to reset the module calling reset method then reload the current page
+        $this->reset();
+        return "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-right'>Reset</a>";
+    }
+
+    public function uninstall()
+    {
+        if (!parent::uninstall() ||
+            !Configuration::deleteByName('CHAT_MODEL_ID') || !Configuration::deleteByName('CHAT_MODEL_TOKEN')) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function reset()
+    {
+        if (!$this->uninstall()) {
+            return false;
+        }
+        if (!$this->install()) {
+            return false;
+        }
+        // Additional reset logic here
+        return true;
     }
 
 }

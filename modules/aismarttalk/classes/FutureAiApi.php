@@ -20,7 +20,7 @@ class FutureAiApi extends Module
 {
     public function __invoke()
     {
-        $this->sendProductsToApi();
+        return $this->sendProductsToApi();
     }
 
     private function sendProductsToApi() {
@@ -62,14 +62,21 @@ class FutureAiApi extends Module
             ];
 
             if (count($documentDatas) === 100) {
-                $this->postToApi($documentDatas);
+                if (false === $this->postToApi($documentDatas)) {
+                    return false;
+                }
+
                 $documentDatas = [];
             }
         }
 
         if (count($documentDatas) > 0) {
-            $this->postToApi($documentDatas);
+            if (false === $this->postToApi($documentDatas)) {
+                return false;
+            }
         }
+
+        return true;
     }
 
     private function postToApi($documentDatas) {
@@ -92,10 +99,9 @@ class FutureAiApi extends Module
         $result = curl_exec($ch);
         if($result === false) {
             // Debug: CURL error
-            var_dump('Curl error: ' . curl_error($ch));
+            Configuration::updateValue('AI_SMART_TALK_CURL_ERROR', curl_error($ch));
         } else {
-            // Debug: Successful result
-            var_dump('CURL execution result:', $result);
+            Configuration::deleteByName('AI_SMART_TALK_CURL_ERROR');
         }
 
         curl_close($ch);
