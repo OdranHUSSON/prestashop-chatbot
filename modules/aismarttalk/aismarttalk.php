@@ -162,7 +162,6 @@ class AiSmartTalk extends Module
 
     private function isConfigured()
     {
-        var_dump(Configuration::get('CHAT_MODEL_ID'), Configuration::get('CHAT_MODEL_TOKEN'));
         return !empty(Configuration::get('CHAT_MODEL_ID')) && !empty(Configuration::get('CHAT_MODEL_TOKEN')) && empty(Configuration::get('AI_SMART_TALK_ERROR'));
     }
 
