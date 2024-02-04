@@ -35,6 +35,10 @@ class AiSmartTalk extends Module
     public function getContent() {
         $output = null;
 
+        if (Tools::getValue('resetConfiguration') === $this->name) {
+            $this->resetConfiguration();
+        }
+
         $output .= $this->handleForm();
         $output .= $this->getConcentInfoIfNotConfigured();
         $output .= $this->displayForm();
@@ -46,7 +50,7 @@ class AiSmartTalk extends Module
 
     public function displayForm() {
         // If already configured, no need to display the form
-        if ($this->isConfigured() && empty(Configuration::get(''))) {
+        if ($this->isConfigured() && empty(Configuration::get('AI_SMART_TALK_ERROR'))) {
             return '';
         }
 
@@ -158,6 +162,7 @@ class AiSmartTalk extends Module
 
     private function isConfigured()
     {
+        var_dump(Configuration::get('CHAT_MODEL_ID'), Configuration::get('CHAT_MODEL_TOKEN'));
         return !empty(Configuration::get('CHAT_MODEL_ID')) && !empty(Configuration::get('CHAT_MODEL_TOKEN')) && empty(Configuration::get('AI_SMART_TALK_ERROR'));
     }
 
@@ -188,31 +193,13 @@ class AiSmartTalk extends Module
 
     private function displayResetButton() {
         // return a button to reset the module calling reset method then reload the current page
-        $this->reset();
-        return "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-right'>Charger un autre modèle de chat</a>";
+        return "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&resetConfiguration='.$this->name.'&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-left'>Charger un autre modèle de chat</a>";
     }
 
-    public function uninstall()
+    private function resetConfiguration()
     {
-        if (!parent::uninstall()) {
-            return false;
-        }
-
-        return true;
-    }
-
-    private function reset()
-    {
-        if (!$this->uninstall()) {
-            return false;
-        }
-        if (!$this->install()) {
-            return false;
-        }
-
         Configuration::deleteByName('CHAT_MODEL_ID');
         Configuration::deleteByName('CHAT_MODEL_TOKEN');
-
         // Additional reset logic here
         return true;
     }
