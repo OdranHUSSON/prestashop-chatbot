@@ -90,7 +90,8 @@ class FutureAiApi extends Module
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
             'documentDatas' => $documentDatas,
             'chatModelId' => $chatModelId,
-            'chatModelToken' => $chatModelToken
+            'chatModelToken' => $chatModelToken,
+            'source' => 'PRESTASHOP'
         ]));
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
