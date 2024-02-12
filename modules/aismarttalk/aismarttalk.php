@@ -107,7 +107,7 @@ class AiSmartTalk extends Module
 
         $this->context->smarty->assign(array(
             'chatModelId' => $chatModelId,
-            'CDN' => 'http://cdn.aismarttalk.tech',
+            'CDN' => 'https://cdn.aismarttalk.tech',
             'lang' => $lang,
         ));
     
@@ -131,7 +131,7 @@ class AiSmartTalk extends Module
         $iframeUrl = $this->getApiHost() .  "/$lang/embedded/$chatModelId/$chatModelToken";
 
         $this->context->smarty->assign(array(
-            'CDN' => 'http://cdn.aismarttalk.tech',
+            'CDN' => 'https://cdn.aismarttalk.tech',
             'iframeUrl' => $iframeUrl,
             'chatModelId' => $chatModelId,
             'lang' => $lang,
