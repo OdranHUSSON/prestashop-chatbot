@@ -29,7 +29,7 @@ class AiSmartTalk extends Module
 
         $this->confirmUninstall = $this->trans('Are you sure you want to uninstall?', [], 'Modules.Futureai.Admin');
 
-        Configuration::updateValue('AI_SMART_TALK_URL', 'http://ai-toolkit-node:3000');
+        Configuration::updateValue('AI_SMART_TALK_URL', 'https://aismarttalk.tech/');
     }
 
     public function getContent() {
@@ -107,7 +107,7 @@ class AiSmartTalk extends Module
 
         $this->context->smarty->assign(array(
             'chatModelId' => $chatModelId,
-            'CDN' => 'http://localhost:3001',
+            'CDN' => 'http://cdn.aismarttalk.tech',
             'lang' => $lang,
         ));
     
@@ -131,7 +131,7 @@ class AiSmartTalk extends Module
         $iframeUrl = $this->getApiHost() .  "/$lang/embedded/$chatModelId/$chatModelToken";
 
         $this->context->smarty->assign(array(
-            'CDN' => 'http://localhost:3001',
+            'CDN' => 'http://cdn.aismarttalk.tech',
             'iframeUrl' => $iframeUrl,
             'chatModelId' => $chatModelId,
             'lang' => $lang,
