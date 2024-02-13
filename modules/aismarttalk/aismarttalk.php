@@ -25,11 +25,11 @@ class AiSmartTalk extends Module
         parent::__construct();
 
         $this->displayName = $this->trans('AI SmartTalk', [], 'Modules.Futureai.Admin');
-        $this->description = $this->trans('Best chatbot ever.', [], 'Modules.Futureai.Admin');
+        $this->description = $this->trans('DEMO ALPHA VERSION DO NOT SHARE.', [], 'Modules.Futureai.Admin');
 
         $this->confirmUninstall = $this->trans('Are you sure you want to uninstall?', [], 'Modules.Futureai.Admin');
 
-        Configuration::updateValue('AI_SMART_TALK_URL', 'http://ai-toolkit-node:3000');
+        Configuration::updateValue('AI_SMART_TALK_URL', 'https://aismarttalk.tech/');
     }
 
     public function getContent() {
@@ -107,7 +107,7 @@ class AiSmartTalk extends Module
 
         $this->context->smarty->assign(array(
             'chatModelId' => $chatModelId,
-            'CDN' => 'http://localhost:3001',
+            'CDN' => 'https://cdn.aismarttalk.tech/',
             'lang' => $lang,
         ));
     
@@ -117,9 +117,10 @@ class AiSmartTalk extends Module
     private function getApiHost() {
         $url = Configuration::get('AI_SMART_TALK_URL');
 
-        if (strpos($url, 'http://ai-toolkit-node:3000') !== false) {
-            $url = str_replace('http://ai-toolkit-node:3000', 'http://localhost:3000', $url);
+        if (strpos($url, 'https://aismarttalk.tech/') !== false) {
+            $url = str_replace('https://aismarttalk.tech/', 'http://localhost:3000', $url);
         }
+        $url = 'https://aismarttalk.tech/'; // Force to use the production API for demo purposes
         return $url;
     }
 
@@ -131,7 +132,7 @@ class AiSmartTalk extends Module
         $iframeUrl = $this->getApiHost() .  "/$lang/embedded/$chatModelId/$chatModelToken";
 
         $this->context->smarty->assign(array(
-            'CDN' => 'http://localhost:3001',
+            'CDN' => 'https://cdn.aismarttalk.tech/',
             'iframeUrl' => $iframeUrl,
             'chatModelId' => $chatModelId,
             'lang' => $lang,

@@ -61,7 +61,7 @@ class FutureAiApi extends Module
                 'image_url' => $imageUrl
             ];
 
-            if (count($documentDatas) === 100) {
+            if (count($documentDatas) === 10) {
                 if (false === $this->postToApi($documentDatas)) {
                     return false;
                 }
@@ -85,7 +85,7 @@ class FutureAiApi extends Module
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
 
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $aiSmartTalkUrl .'/api/document/source');
+        curl_setopt($ch, CURLOPT_URL, $aiSmartTalkUrl .'api/document/source');
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
             'documentDatas' => $documentDatas,
@@ -95,6 +95,8 @@ class FutureAiApi extends Module
         ]));
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+        var_dump($aiSmartTalkUrl .'/api/document/source');
 
 
         $result = curl_exec($ch);
