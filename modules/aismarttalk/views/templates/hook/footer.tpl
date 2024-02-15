@@ -1,8 +1,6 @@
 <!-- views/templates/hook/footer.tpl -->
-<script>
-    window.chatbotSettings = {
-      lang: "{$lang}"
-    };
-</script>
-<script type="text/javascript" src="{$CDN}/cdn?chatModelId={$chatModelId}" async></script>
-<div id="chatbot">Loading ...</div>
+<iframe allowTransparency="true" id="chatbot-iframe" src="{$CDN}/chatbot/{$chatModelId}?lang={$lang}&initialColorMode=light" style="width: 70px; height: 70px; position: fixed; bottom: 0; right: 0; border: 0; z-index: 1223;"></iframe>
+<script
+        type="text/javascript"
+        src="{$CDN}/latest.js"
+/>

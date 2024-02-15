@@ -25,11 +25,20 @@ class AiSmartTalk extends Module
         parent::__construct();
 
         $this->displayName = $this->trans('AI SmartTalk', [], 'Modules.Futureai.Admin');
-        $this->description = $this->trans('Best chatbot ever.', [], 'Modules.Futureai.Admin');
+        $this->description = $this->trans('https://aismarttalk.tech/', [], 'Modules.Futureai.Admin');
 
         $this->confirmUninstall = $this->trans('Are you sure you want to uninstall?', [], 'Modules.Futureai.Admin');
 
-        Configuration::updateValue('AI_SMART_TALK_URL', 'http://ai-toolkit-node:3000');
+        // Check if the environment is production or development
+        if ($_SERVER['HTTP_HOST'] !== 'prestashop') {
+            // Production environment
+            Configuration::updateValue('AI_SMART_TALK_URL', 'https://aismarttalk.tech');
+            Configuration::updateValue('AI_SMART_TALK_CDN', 'https://cdn.aismarttalk.tech');
+        } else {
+            // Development environment
+            Configuration::updateValue('AI_SMART_TALK_URL', 'http://ai-toolkit-node:3000');
+            Configuration::updateValue('AI_SMART_TALK_CDN', 'http://localhost:3001');
+        }
     }
 
     public function getContent() {
@@ -107,7 +116,7 @@ class AiSmartTalk extends Module
 
         $this->context->smarty->assign(array(
             'chatModelId' => $chatModelId,
-            'CDN' => 'http://localhost:3001',
+            'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
             'lang' => $lang,
         ));
     
@@ -131,7 +140,7 @@ class AiSmartTalk extends Module
         $iframeUrl = $this->getApiHost() .  "/$lang/embedded/$chatModelId/$chatModelToken";
 
         $this->context->smarty->assign(array(
-            'CDN' => 'http://localhost:3001',
+            'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
             'iframeUrl' => $iframeUrl,
             'chatModelId' => $chatModelId,
             'lang' => $lang,
