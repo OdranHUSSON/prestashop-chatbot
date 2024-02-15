@@ -24,8 +24,8 @@ class FutureAiApi extends Module
     }
 
     private function sendProductsToApi() {
-        $sql = "SELECT p.id_product, pl.name, pl.description, pl.description_short, 
-                   p.reference, p.price, p.active, cl.link_rewrite AS category, i.id_image,
+        $sql = "SELECT p.id_product, pl.name, pl.description, 
+                   p.reference, p.price, cl.link_rewrite AS category, i.id_image,
                    CONCAT(cl.link_rewrite, '/', p.id_product, '-', pl.link_rewrite, '.html') AS product_url,
                    CONCAT('/img/p/', i.id_image, '.jpg') AS image_url
             FROM " . _DB_PREFIX_ . "product p 
