@@ -29,7 +29,7 @@ class AiSmartTalk extends Module
 
         $this->confirmUninstall = $this->trans('Are you sure you want to uninstall?', [], 'Modules.Futureai.Admin');
 
-        Configuration::updateValue('AI_SMART_TALK_URL', 'https://aismarttalk.tech/');
+        Configuration::updateValue('AI_SMART_TALK_URL', 'https://aismarttalk.tech');
     }
 
     public function getContent() {

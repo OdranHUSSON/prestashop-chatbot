@@ -61,7 +61,7 @@ class FutureAiApi extends Module
                 'image_url' => $imageUrl
             ];
 
-            if (count($documentDatas) === 100) {
+            if (count($documentDatas) === 10) {
                 if (false === $this->postToApi($documentDatas)) {
                     return false;
                 }
