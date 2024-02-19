@@ -5,7 +5,8 @@ if (!defined('_PS_VERSION_')) {
 
 require_once dirname(__FILE__) . '/vendor/autoload.php';
 
-use PrestaShop\AiSmartTalk\FutureAiApi;
+use PrestaShop\AiSmartTalk\CleanProductDocuments;
+use PrestaShop\AiSmartTalk\SynchProductsToAiSmartTalk;
 
 class AiSmartTalk extends Module
 {
@@ -41,15 +42,35 @@ class AiSmartTalk extends Module
         }
     }
 
+    public function install()
+    {
+        if (!parent::install() || !$this->registerHook('displayFooter') || !$this->addSynchField()) {
+            return false;
+        }
+        return true;
+    }
+
+    private function addSynchField()
+    {
+        $sql = 'ALTER TABLE '._DB_PREFIX_.'product ADD COLUMN aismarttalk_synch TINYINT(1) NOT NULL DEFAULT 0;';
+        return Db::getInstance()->execute($sql);
+    }
+
     public function getContent() {
-        $output = null;
+        $output = '';
 
         if (Tools::getValue('resetConfiguration') === $this->name) {
             $this->resetConfiguration();
         }
 
         if (Tools::getValue('forceSync')) {
-            $this->sync(Tools::getValue('forceSync'));
+            $force = Tools::getValue('forceSync') === 'true';
+            $output .= $this->sync($force, $output);
+        }
+
+        if (Tools::getValue('clean')) {
+            (new CleanProductDocuments())();
+            $output .= $this->displayConfirmation('Les produits supprimés et non actifs ont été nettoyés.');
         }
 
         $output .= $this->handleForm();
@@ -155,21 +176,6 @@ class AiSmartTalk extends Module
         }
     }
 
-    public function install()
-    {
-        if (!parent::install() || !$this->registerHook('displayFooter') || !$this->addSynchField()) {
-            return false;
-        }
-        return true;
-    }
-
-    private function addSynchField()
-    {
-        $sql = 'ALTER TABLE '._DB_PREFIX_.'product ADD COLUMN aismarttalk_synch TINYINT(1) NOT NULL DEFAULT 0;';
-        return Db::getInstance()->execute($sql);
-    }
-
-
     private function getConcentInfoIfNotConfigured()
     {
         return !$this->isConfigured()
@@ -205,6 +211,7 @@ class AiSmartTalk extends Module
 
         $html .= "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&forceSync=false&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-left'>Synchroniser les nouveaux produits</a>";
         $html .= "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&forceSync=true&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-left'>ReSynchroniser tous les produits</a>";
+        $html .= "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&clean=true&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-left'>Nettoyer</a>";
 
         $html .= "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&resetConfiguration='.$this->name.'&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-left'>Charger un autre modèle de chat</a>";
 
@@ -221,11 +228,15 @@ class AiSmartTalk extends Module
 
     private function sync(bool $force = false, $output = "")
     {
-        $api = new FutureAiApi();
+        $api = new SynchProductsToAiSmartTalk();
         $isSynch = $api(['forceSynch' =>$force]);
 
         if (true === $isSynch) {
-            $output .= $this->displayConfirmation('Les produits ont été synchronisés avec l\'API.');
+            if ($force) {
+                $output .= $this->displayConfirmation('Tous les produits ont été synchronisés avec l\'API.');
+            } else {
+                $output .= $this->displayConfirmation('Les nouveaux produits ont été synchronisés avec l\'API.');
+            }
         } else {
             $output .= $this->displayError('Une erreur est survenue lors de la synchronisation avec l\'API.');
             $output .= Configuration::get('AI_SMART_TALK_ERROR') ? $this->displayError(Configuration::get('AI_SMART_TALK_ERROR')) : '';

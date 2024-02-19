@@ -16,7 +16,7 @@ use Context;
 use Product;
 
 
-class FutureAiApi extends Module
+class SynchProductsToAiSmartTalk extends Module
 {
     private $forceSync = false;
 

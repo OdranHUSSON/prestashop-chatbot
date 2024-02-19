@@ -23,7 +23,8 @@ class ComposerStaticInit1a64e4a2bee93f2d2c517a3b98c5161e
     public static $classMap = array (
         'AiSmartTalk' => __DIR__ . '/../..' . '/aismarttalk.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
-        'PrestaShop\\AiSmartTalk\\FutureAiApi' => __DIR__ . '/../..' . '/classes/FutureAiApi.php',
+        'PrestaShop\\AiSmartTalk\\CleanProductDocuments' => __DIR__ . '/../..' . '/classes/CleanProductDocuments.php',
+        'PrestaShop\\AiSmartTalk\\SynchProductsToAiSmartTalk' => __DIR__ . '/../..' . '/classes/SynchProductsToAiSmartTalk.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

@@ -8,5 +8,6 @@ $baseDir = dirname($vendorDir);
 return array(
     'AiSmartTalk' => $baseDir . '/aismarttalk.php',
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
-    'PrestaShop\\AiSmartTalk\\FutureAiApi' => $baseDir . '/classes/FutureAiApi.php',
+    'PrestaShop\\AiSmartTalk\\CleanProductDocuments' => $baseDir . '/classes/CleanProductDocuments.php',
+    'PrestaShop\\AiSmartTalk\\SynchProductsToAiSmartTalk' => $baseDir . '/classes/SynchProductsToAiSmartTalk.php',
 );
