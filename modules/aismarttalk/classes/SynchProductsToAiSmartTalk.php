@@ -16,27 +16,29 @@ use Context;
 use Product;
 
 
-class FutureAiApi extends Module
+class SynchProductsToAiSmartTalk extends Module
 {
-    public function __invoke()
+    private $forceSync = false;
+
+    public function __invoke($args = [])
     {
+        foreach ($args as $key => $value) {
+            if (!property_exists($this, $key)) {
+                continue;
+            }
+            $this->$key = $value;
+        }
+
         return $this->sendProductsToApi();
     }
 
     private function sendProductsToApi() {
-        $sql = "SELECT p.id_product, pl.name, pl.description, 
-                   p.reference, p.price, cl.link_rewrite, i.id_image
-            FROM " . _DB_PREFIX_ . "product p 
-            JOIN " . _DB_PREFIX_ . "product_lang pl ON p.id_product = pl.id_product 
-            JOIN " . _DB_PREFIX_ . "category_lang cl ON p.id_category_default = cl.id_category 
-            LEFT JOIN " . _DB_PREFIX_ . "image i ON p.id_product = i.id_product AND i.cover = 1
-            WHERE pl.id_lang = 1 AND cl.id_lang = 1 AND p.active = 1";
-
-        $products = Db::getInstance()->executeS($sql);
+        $products = $this->getProductsToSynchronize();
 
         $baseLink = Tools::getHttpHost(true) . __PS_BASE_URI__;
 
         $documentDatas = [];
+        $synchronizedProductIds = [];
         foreach ($products as $product) {
             $psProduct = new Product($product['id_product']);
 
@@ -58,21 +60,36 @@ class FutureAiApi extends Module
             ];
 
             if (count($documentDatas) === 100) {
-                if (false === $this->postToApi($documentDatas)) {
+                if (!$this->postIfDataExists($documentDatas))
                     return false;
-                }
 
                 $documentDatas = [];
             }
+
+            $synchronizedProductIds[] = $product['id_product'];
         }
 
-        if (count($documentDatas) > 0) {
-            if (false === $this->postToApi($documentDatas)) {
-                return false;
-            }
-        }
+        if (!$this->postIfDataExists($documentDatas))
+            return false;
+
+        if (count($synchronizedProductIds) > 0)
+            $this->markProductsAsSynchronized($synchronizedProductIds);
 
         return true;
+    }
+
+    private function postIfDataExists($documentDatas) {
+        if (count($documentDatas) > 0 && false === $this->postToApi($documentDatas)) {
+            return false;
+        }
+        return true;
+    }
+
+    public function markProductsAsSynchronized($productIds)
+    {
+        $ids = implode(',', array_map('intval', $productIds));
+        $sql = 'UPDATE '._DB_PREFIX_.'product SET aismarttalk_synch = 1 WHERE id_product IN ('.$ids.')';
+        return Db::getInstance()->execute($sql);
     }
 
     private function postToApi($documentDatas) {
@@ -110,5 +127,21 @@ class FutureAiApi extends Module
         }
 
         return $result;
+    }
+
+    private function getProductsToSynchronize()
+    {
+        $sql = "SELECT p.id_product, pl.name, pl.description, 
+                   p.reference, p.price, cl.link_rewrite, i.id_image
+            FROM " . _DB_PREFIX_ . "product p 
+            JOIN " . _DB_PREFIX_ . "product_lang pl ON p.id_product = pl.id_product 
+            JOIN " . _DB_PREFIX_ . "category_lang cl ON p.id_category_default = cl.id_category 
+            LEFT JOIN " . _DB_PREFIX_ . "image i ON p.id_product = i.id_product AND i.cover = 1
+            WHERE pl.id_lang = 1 AND cl.id_lang = 1 AND p.active = 1";
+
+        $sql .= $this->forceSync === false ? ' AND p.aismarttalk_synch = 0' : '';
+        $products = Db::getInstance()->executeS($sql);
+
+        return $products;
     }
 }
