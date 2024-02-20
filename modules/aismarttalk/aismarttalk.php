@@ -229,7 +229,7 @@ class AiSmartTalk extends Module
     private function sync(bool $force = false, $output = "")
     {
         $api = new SynchProductsToAiSmartTalk();
-        $isSynch = $api(['forceSynch' =>$force]);
+        $isSynch = $api(['forceSync' =>$force]);
 
         if (true === $isSynch) {
             if ($force) {

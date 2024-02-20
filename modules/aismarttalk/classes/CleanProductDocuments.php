@@ -28,7 +28,7 @@ class CleanProductDocuments extends Module
         $products = Db::getInstance()->executeS($sql);
 
         return array_map(function($product) {
-            return $product['id_product'];
+            return (string) $product['id_product'];
         }, $products);
     }
 

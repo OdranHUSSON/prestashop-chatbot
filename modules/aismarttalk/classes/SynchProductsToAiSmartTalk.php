@@ -139,8 +139,7 @@ class SynchProductsToAiSmartTalk extends Module
             LEFT JOIN " . _DB_PREFIX_ . "image i ON p.id_product = i.id_product AND i.cover = 1
             WHERE pl.id_lang = 1 AND cl.id_lang = 1 AND p.active = 1";
 
-        $sql .= $this->forceSync ? '' : ' AND p.aismarttalk_synch = 0';
-
+        $sql .= $this->forceSync === false ? ' AND p.aismarttalk_synch = 0' : '';
         $products = Db::getInstance()->executeS($sql);
 
         return $products;
