@@ -11,9 +11,12 @@ services:
       - DB_NAME=prestashop
       - DB_USER=prestashop
       - DB_PASSWD=prestashop
-      - PS_DOMAIN=localhost:80
+      - PS_DOMAIN=prestashop
       - PS_USER=admin
       - PS_PASSWD=admin
+      - PS_LANGUAGE=fr
+      - PS_COUNTRY=FR
+      - ADMIN_PASSWD=Ds1J1umhy'l3~F%!b){1
     volumes:
       - ./modules/aismarttalk:/var/www/html/modules/aismarttalk
       - psdata:/var/www/html
