@@ -14,12 +14,17 @@ use Configuration;
 
 class CleanProductDocuments extends Module
 {
-    public function __invoke()
+    private $productIds;
+
+    public function __invoke($args = [])
     {
-        $productIds = $this->fetchAllProductIds();
-        if (!empty($productIds)) {
-            $this->postProductIdsToApi($productIds);
+        foreach ($args as $key => $value) {
+            if (!property_exists($this, $key)) {
+                continue;
+            }
+            $this->$key = $value;
         }
+        $this->cleanProducts();
     }
 
     private function fetchAllProductIds()
@@ -32,8 +37,9 @@ class CleanProductDocuments extends Module
         }, $products);
     }
 
-    private function postProductIdsToApi($productIds)
+    private function cleanProducts()
     {
+        $productIds = $this->productIds ? $this->productIds : $this->fetchAllProductIds();
         $aiSmartTalkUrl = Configuration::get('AI_SMART_TALK_URL');
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
@@ -45,6 +51,7 @@ class CleanProductDocuments extends Module
                     'productIds' => $productIds,
                     'chatModelId' => $chatModelId,
                     'chatModelToken' => $chatModelToken,
+                    'deleteFromIds' => [] !== $this->productIds ? true : false,
                     'source' => 'PRESTASHOP'
                 ]
             )

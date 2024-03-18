@@ -48,6 +48,7 @@ class AiSmartTalk extends Module
             || !$this->registerHook('displayFooter')
             || ! $this->registerHook('actionProductUpdate')
             || ! $this->registerHook('actionProductCreate')
+            || ! $this->registerHook('actionProductDelete')
             || !$this->addSynchField()) {
             return false;
         }
@@ -56,9 +57,25 @@ class AiSmartTalk extends Module
 
     private function addSynchField()
     {
-        $sql = 'ALTER TABLE '._DB_PREFIX_.'product ADD COLUMN aismarttalk_synch TINYINT(1) NOT NULL DEFAULT 0;';
-        return Db::getInstance()->execute($sql);
+        // Check if the column already exists
+        $columnExists = Db::getInstance()->execute(
+            'SELECT COLUMN_NAME 
+         FROM information_schema.COLUMNS 
+         WHERE 
+             TABLE_SCHEMA = "'._DB_PREFIX_.'product" AND 
+             TABLE_NAME = "product" AND 
+             COLUMN_NAME = "aismarttalk_synch"'
+        );
+
+        // If the column does not exist, add it
+        if (empty($columnExists)) {
+            $sql = 'ALTER TABLE '._DB_PREFIX_.'product ADD COLUMN aismarttalk_synch TINYINT(1) NOT NULL DEFAULT 0;';
+            return Db::getInstance()->execute($sql);
+        }
+
+        return true;
     }
+
 
     public function getContent() {
         $output = '';
@@ -156,14 +173,21 @@ class AiSmartTalk extends Module
         $product = $params['product'];
         $idProduct = $product->id;
         $api = new SynchProductsToAiSmartTalk();
-        $api(['productIds' => [$idProduct], "forceSync" => true]);
+        $api(['productIds' => [(string) $idProduct], "forceSync" => true]);
     }
 
     public function hookActionProductCreate($params) {
         $product = $params['product'];
         $idProduct = $product->id;
         $api = new SynchProductsToAiSmartTalk();
-        $api(['productIds' => [$idProduct], "forceSync" => true]);
+        $api(['productIds' => [(string) $idProduct], "forceSync" => true]);
+    }
+
+    public function hookActionProductDelete($params) {
+        $product = $params['product'];
+        $idProduct = $product->id;
+        $api = new CleanProductDocuments();
+        $api(['productIds' => [(string) $idProduct]]);
     }
 
     private function getApiHost() {
