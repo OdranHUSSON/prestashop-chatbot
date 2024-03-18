@@ -19,6 +19,7 @@ use Product;
 class SynchProductsToAiSmartTalk extends Module
 {
     private $forceSync = false;
+    private $productIds = [];
 
     public function __invoke($args = [])
     {
@@ -140,6 +141,7 @@ class SynchProductsToAiSmartTalk extends Module
             WHERE pl.id_lang = 1 AND cl.id_lang = 1 AND p.active = 1";
 
         $sql .= $this->forceSync === false ? ' AND p.aismarttalk_synch = 0' : '';
+        $sql .= $this->productIds ? ' AND p.id_product IN (' . implode(',', $this->productIds) . ')' : '';
         $products = Db::getInstance()->executeS($sql);
 
         return $products;
