@@ -44,7 +44,11 @@ class AiSmartTalk extends Module
 
     public function install()
     {
-        if (!parent::install() || !$this->registerHook('displayFooter') || !$this->addSynchField()) {
+        if (!parent::install()
+            || !$this->registerHook('displayFooter')
+            || ! $this->registerHook('actionProductUpdate')
+            || ! $this->registerHook('actionProductCreate')
+            || !$this->addSynchField()) {
             return false;
         }
         return true;
@@ -146,6 +150,20 @@ class AiSmartTalk extends Module
         ));
 
         return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
+    }
+
+    public function hookActionProductUpdate($params) {
+        $product = $params['product'];
+        $idProduct = $product->id;
+        $api = new SynchProductsToAiSmartTalk();
+        $api(['productIds' => [$idProduct], "forceSync" => true]);
+    }
+
+    public function hookActionProductCreate($params) {
+        $product = $params['product'];
+        $idProduct = $product->id;
+        $api = new SynchProductsToAiSmartTalk();
+        $api(['productIds' => [$idProduct], "forceSync" => true]);
     }
 
     private function getApiHost() {
