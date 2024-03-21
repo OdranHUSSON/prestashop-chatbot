@@ -52,11 +52,11 @@ class SynchProductsToAiSmartTalk extends Module
 
             $documentDatas[] = [
                 'id' => $product['id_product'],
-                'name' => $product['name'],
+                'title' => $product['name'],
                 'description' => strip_tags($product['description']),
                 'reference' => $product['reference'],
                 'price' => $psProduct->getPrice(),
-                'product_url' => $productUrl,
+                'url' => $productUrl,
                 'image_url' => $imageUrl
             ];
 
