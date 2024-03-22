@@ -60,7 +60,7 @@ class SynchProductsToAiSmartTalk extends Module
                 'image_url' => $imageUrl
             ];
 
-            if (count($documentDatas) === 100) {
+            if (count($documentDatas) === 10) {
                 if (!$this->postIfDataExists($documentDatas))
                     return false;
 
