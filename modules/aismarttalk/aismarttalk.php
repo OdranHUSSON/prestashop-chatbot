@@ -46,10 +46,11 @@ class AiSmartTalk extends Module
     {
         if (!parent::install()
             || !$this->registerHook('displayFooter')
-            || ! $this->registerHook('actionProductUpdate')
-            || ! $this->registerHook('actionProductCreate')
-            || ! $this->registerHook('actionProductDelete')
-            || !$this->addSynchField()) {
+            || !$this->registerHook('actionProductUpdate')
+            || !$this->registerHook('actionProductCreate')
+            || !$this->registerHook('actionProductDelete')
+            || !$this->addSynchField()
+            || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) { // Add default configuration for enabling/disabling the chatbot
             return false;
         }
         return true;
@@ -100,7 +101,28 @@ class AiSmartTalk extends Module
         $output .= $this->displayBackOfficeIframe();
         $output .= $this->isConfigured() ? $this->displayButtons() : ''; // Afficher le bouton si configuré
 
+        if (Tools::isSubmit('submitToggleChatbot')) {
+            $chatbotEnabled = (bool)Tools::getValue('AI_SMART_TALK_ENABLED');
+            Configuration::updateValue('AI_SMART_TALK_ENABLED', $chatbotEnabled);
+            $output .= $this->displayConfirmation($this->l('Settings updated.'));
+        }
+
+        $output .= $this->displayChatbotToggleForm();        
+
         return $output;
+    }
+
+    protected function displayChatbotToggleForm()
+    {
+        $form = '
+            <form action="' . $_SERVER['REQUEST_URI'] . '" method="post">
+                <label for="AI_SMART_TALK_ENABLED">' . $this->l('Enable Chatbot:') . '</label>
+                <input type="checkbox" name="AI_SMART_TALK_ENABLED" value="1" ' . (Configuration::get('AI_SMART_TALK_ENABLED') ? 'checked' : '') . ' />
+                <input type="submit" name="submitToggleChatbot" value="' . $this->l('Save') . '" class="button" />
+            </form>
+        ';
+
+        return $form;
     }
 
     public function displayForm() {
@@ -157,6 +179,9 @@ class AiSmartTalk extends Module
     }
 
     public function hookDisplayFooter($params) {
+        if (!Configuration::get('AI_SMART_TALK_ENABLED')) {
+            return '';
+        }
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $lang = $this->context->language->iso_code;
 
