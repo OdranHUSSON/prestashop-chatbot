@@ -51,7 +51,9 @@ class SynchProductsToAiSmartTalk extends Module
             }
 
             $documentDatas[] = [
-                'id' => $product['id_product'],
+                'sourceType' => 'PRESTASHOP',
+                'externalId' => $product['id_product'],
+
                 'title' => $product['name'],
                 'description' => strip_tags($product['description']),
                 'reference' => $product['reference'],
@@ -105,7 +107,6 @@ class SynchProductsToAiSmartTalk extends Module
             'documentDatas' => $documentDatas,
             'chatModelId' => $chatModelId,
             'chatModelToken' => $chatModelToken,
-            'source' => 'PRESTASHOP'
         ]));
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
