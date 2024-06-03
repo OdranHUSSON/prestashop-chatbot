@@ -60,13 +60,6 @@ class SynchProductsToAiSmartTalk extends Module
                 'image_url' => $imageUrl
             ];
 
-            if (count($documentDatas) === 10) {
-                if (!$this->postIfDataExists($documentDatas))
-                    return false;
-
-                $documentDatas = [];
-            }
-
             $synchronizedProductIds[] = $product['id_product'];
         }
 
@@ -98,36 +91,55 @@ class SynchProductsToAiSmartTalk extends Module
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $aiSmartTalkUrl .'/api/document/source');
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-            'documentDatas' => $documentDatas,
-            'chatModelId' => $chatModelId,
-            'chatModelToken' => $chatModelToken,
-            'source' => 'PRESTASHOP'
-        ]));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $multiHandle = curl_multi_init();
+        $curlHandles = [];
+        $chunkSize = 10;
+        $documentChunks = array_chunk($documentDatas, $chunkSize);
 
+        foreach ($documentChunks as $documents) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $aiSmartTalkUrl . '/api/document/source');
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+                'documentDatas' => $documents,
+                'chatModelId' => $chatModelId,
+                'chatModelToken' => $chatModelToken,
+                'source' => 'PRESTASHOP'
+            ]));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-        $result = curl_exec($ch);
-        if($result === false) {
-            // Debug: CURL error
-            Configuration::updateValue('AI_SMART_TALK_ERROR', curl_error($ch));
-        } else {
-            Configuration::deleteByName('AI_SMART_TALK_ERROR');
+            curl_multi_add_handle($multiHandle, $ch);
+            $curlHandles[] = $ch;
         }
 
-        curl_close($ch);
+        // Execute all queries simultaneously, and continue when all are complete
+        $running = null;
+        do {
+            curl_multi_exec($multiHandle, $running);
+            curl_multi_select($multiHandle);
+        } while ($running > 0);
 
-        $response = json_decode($result, true);
-        if (isset($response['status']) && $response['status'] == 'error') {
-            Configuration::updateValue('AI_SMART_TALK_ERROR', $response['message']);
-            return false;
+        // Collect results and handle errors
+        foreach ($curlHandles as $ch) {
+            $result = curl_multi_getcontent($ch);
+            if ($result === false) {
+                // Debug: CURL error
+                Configuration::updateValue('AI_SMART_TALK_ERROR', curl_error($ch));
+            } else {
+                Configuration::deleteByName('AI_SMART_TALK_ERROR');
+            }
+
+            $response = json_decode($result, true);
+            if (isset($response['status']) && $response['status'] == 'error') {
+                Configuration::updateValue('AI_SMART_TALK_ERROR', $response['message']);
+            }
+
+            curl_multi_remove_handle($multiHandle, $ch);
+            curl_close($ch);
         }
 
-        return $result;
+        curl_multi_close($multiHandle);
     }
 
     private function getProductsToSynchronize()
