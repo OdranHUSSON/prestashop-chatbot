@@ -49,6 +49,7 @@ class AiSmartTalk extends Module
             || !$this->registerHook('actionProductUpdate')
             || !$this->registerHook('actionProductCreate')
             || !$this->registerHook('actionProductDelete')
+            || !$this->registerHook('actionSearch')
             || !$this->addSynchField()
             || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) { // Add default configuration for enabling/disabling the chatbot
             return false;
@@ -76,7 +77,6 @@ class AiSmartTalk extends Module
 
         return true;
     }
-
 
     public function getContent() {
         $output = '';
@@ -213,6 +213,62 @@ class AiSmartTalk extends Module
         $idProduct = $product->id;
         $api = new CleanProductDocuments();
         $api(['productIds' => [(string) $idProduct]]);
+    }
+
+    public function hookActionSearch($params) {
+        $query = $params['query'];
+        $search_query = $query->get('search_query');
+        $chat_model_id = Configuration::get('CHAT_MODEL_ID');
+        $chat_model_token = Configuration::get('CHAT_MODEL_TOKEN');
+        $chat_integration_type = 'PRESTASHOP';
+        $api_url = Configuration::get('AI_SMART_TALK_URL') . '/api/search/myIds';
+
+        $payload = json_encode([
+            'query' => $search_query,
+            'chatModelId' => $chat_model_id,
+            'token' => $chat_model_token,
+            'chatIntegrationType' => $chat_integration_type,
+            'documentType' => 'product',
+        ]);
+
+        $args = [
+            'body' => $payload,
+            'headers' => ['Content-Type' => 'application/json; charset=utf-8'],
+        ];
+
+        $response = $this->makeApiRequest($api_url, $args);
+
+        if ($response['success']) {
+            $ids = array_map('intval', $response['data']);
+            if (!empty($ids)) {
+                $query->set('post__in', $ids);
+                $query->set('s', '');
+                $query->set('orderby', 'post__in');
+            }
+        } else {
+            error_log('Error searching with AI SmartTalk API: ' . $response['message']);
+        }
+    }
+
+    private function makeApiRequest($url, $args) {
+        $response = file_get_contents($url, false, stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => $args['headers'],
+                'content' => $args['body'],
+            ],
+        ]));
+
+        if ($response === false) {
+            return ['success' => false, 'message' => 'API request failed'];
+        }
+
+        $response_data = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return ['success' => false, 'message' => 'Invalid JSON response'];
+        }
+
+        return ['success' => true, 'data' => $response_data];
     }
 
     private function getApiHost() {
