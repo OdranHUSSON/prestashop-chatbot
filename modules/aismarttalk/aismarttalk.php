@@ -318,7 +318,7 @@ class AiSmartTalk extends Module
         return $output;
     }
 
-    public function hookActionCustomerLoginAfter($params)
+    public function hookActionAuthentication($params)
     {
         $customer = $params['customer'];
         $this->setOAuthTokenCookie($customer->email);
