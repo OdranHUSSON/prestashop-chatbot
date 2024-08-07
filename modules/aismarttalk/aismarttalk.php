@@ -53,8 +53,8 @@ class AiSmartTalk extends Module
             || !$this->registerHook('actionCustomerLogoutAfter')
             || !$this->addSynchField()
             || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) {
-            return false;
-        }
+                return false;
+            }
         return true;
     }
 
