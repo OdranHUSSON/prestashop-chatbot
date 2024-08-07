@@ -49,12 +49,15 @@ class AiSmartTalk extends Module
             || !$this->registerHook('actionProductUpdate')
             || !$this->registerHook('actionProductCreate')
             || !$this->registerHook('actionProductDelete')
+            || !$this->registerHook('actionCustomerLoginAfter')
+            || !$this->registerHook('actionCustomerLogoutAfter')
             || !$this->addSynchField()
-            || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) { // Add default configuration for enabling/disabling the chatbot
+            || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) {
             return false;
         }
         return true;
     }
+
 
     private function addSynchField()
     {
@@ -224,24 +227,27 @@ class AiSmartTalk extends Module
         return $url;
     }
 
-    public function displayBackOfficeIframe() {
+    public function displayBackOfficeIframe()
+    {
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
         $lang = $this->context->language->iso_code;
+        $oauthToken = isset($_COOKIE['ai_smarttalk_oauth_token']) ? $_COOKIE['ai_smarttalk_oauth_token'] : '';
 
-        $iframeUrl = $this->getApiHost() .  "/$lang/embedded/$chatModelId/$chatModelToken";
+        $iframeUrl = $this->getApiHost() . "/$lang/embedded/$chatModelId/$chatModelToken?token=$oauthToken";
 
-        $this->context->smarty->assign(array(
+        $this->context->smarty->assign([
             'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
             'iframeUrl' => $iframeUrl,
             'chatModelId' => $chatModelId,
             'lang' => $lang,
-        ));
+        ]);
 
         if ($this->isConfigured()) {
             return $this->display(__FILE__, 'views/templates/admin/backoffice.tpl');
         }
     }
+
 
     private function getConcentInfoIfNotConfigured()
     {
@@ -311,4 +317,65 @@ class AiSmartTalk extends Module
 
         return $output;
     }
+
+    public function hookActionCustomerLoginAfter($params)
+    {
+        $customer = $params['customer'];
+        $this->setOAuthTokenCookie($customer->email);
+    }
+
+    public function hookActionCustomerLogoutAfter($params)
+    {
+        $this->unsetOAuthTokenCookie();
+    }
+    private function setOAuthTokenCookie($email)
+    {
+        $chatModelId = Configuration::get('CHAT_MODEL_ID');
+        $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
+        $source = 'PRESTASHOP';
+        
+        $response = $this->fetchOAuthToken($chatModelId, $chatModelToken, $source, $email);
+
+        if (!empty($response['token'])) {
+            $loginCookieLifetime = time() + (int) Configuration::get('PS_COOKIE_LIFETIME_FO', 14 * 24 * 3600); // 14 days default
+            setcookie('ai_smarttalk_oauth_token', $response['token'], $loginCookieLifetime, '/', null, false, true);
+            $_COOKIE['ai_smarttalk_oauth_token'] = $response['token'];
+        } else {
+            PrestaShopLogger::addLog('No token found in response.', 3);
+        }
+    }
+
+    private function unsetOAuthTokenCookie()
+    {
+        setcookie('ai_smarttalk_oauth_token', '', time() - 3600, '/', null, false, true);
+        unset($_COOKIE['ai_smarttalk_oauth_token']);
+    }
+
+    private function fetchOAuthToken($chatModelId, $chatModelToken, $source, $email)
+    {
+        $url = Configuration::get('AI_SMART_TALK_URL') . '/api/oauth/integration';
+
+        $response = $this->makePostRequest($url, [
+            'chatModelId' => $chatModelId,
+            'token' => $chatModelToken,
+            'source' => $source,
+            'email' => $email,
+        ]);
+
+        return json_decode($response, true);
+    }
+
+    private function makePostRequest($url, $data)
+    {
+        $options = [
+            'http' => [
+                'header'  => "Content-Type: application/json\r\n",
+                'method'  => 'POST',
+                'content' => json_encode($data),
+            ],
+        ];
+        $context  = stream_context_create($options);
+        return file_get_contents($url, false, $context);
+    }
+
 }
