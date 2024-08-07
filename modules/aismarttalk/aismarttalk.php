@@ -12,13 +12,6 @@ class AiSmartTalk extends Module
 {
     public function __construct()
     {
-
-        $_COOKIE['random_cookie_1'] = bin2hex(random_bytes(16)); // Générer un cookie aléatoire
-        $_COOKIE['random_cookie_2'] = bin2hex(random_bytes(16)); // Générer un autre cookie aléatoire
-        $_COOKIE['random_cookie_3'] = bin2hex(random_bytes(16)); // Générer un troisième cookie aléatoire
-
-        // Optionally, you can log the generated cookies
-        PrestaShopLogger::addLog('Generated cookies saved: ' . $cookie1 . ', ' . $cookie2 . ', ' . $cookie3, 1);
         $this->name = 'aismarttalk';
         $this->tab = 'front_office_features';
         $this->version = '1.0.0';
@@ -352,11 +345,9 @@ class AiSmartTalk extends Module
         $source = 'PRESTASHOP';
         
         $response = $this->fetchOAuthToken($chatModelId, $chatModelToken, $source, $email);
-
         if (!empty($response['token'])) {
             $loginCookieLifetime = time() + (int) Configuration::get('PS_COOKIE_LIFETIME_FO', 14 * 24 * 3600); // 14 days default
-            $cookie->ai_smarttalk_oauth_token = $response['token']; // Set the token in the Cookie
-            $cookie->expire = $loginCookieLifetime; // Set the cookie expiration
+            setcookie('ai_smarttalk_oauth_token', $response['token'], $loginCookieLifetime, '/'); // Set the token as a cookie
         } else {
             PrestaShopLogger::addLog('No token found in response for email: ' . $email, 3);
         }
