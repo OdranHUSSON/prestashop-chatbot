@@ -49,7 +49,7 @@ class AiSmartTalk extends Module
             || !$this->registerHook('actionProductUpdate')
             || !$this->registerHook('actionProductCreate')
             || !$this->registerHook('actionProductDelete')
-            || !$this->registerHook('actionCustomerLoginAfter')
+            || !$this->registerHook('actionAuthentication')
             || !$this->registerHook('actionCustomerLogoutAfter')
             || !$this->addSynchField()
             || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) {
