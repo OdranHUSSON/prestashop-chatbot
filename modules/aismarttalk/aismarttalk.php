@@ -49,12 +49,15 @@ class AiSmartTalk extends Module
             || !$this->registerHook('actionProductUpdate')
             || !$this->registerHook('actionProductCreate')
             || !$this->registerHook('actionProductDelete')
+            || !$this->registerHook('actionAuthentication')
+            || !$this->registerHook('actionCustomerLogoutAfter')
             || !$this->addSynchField()
-            || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) { // Add default configuration for enabling/disabling the chatbot
-            return false;
-        }
+            || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) {
+                return false;
+            }
         return true;
     }
+
 
     private function addSynchField()
     {
@@ -185,10 +188,13 @@ class AiSmartTalk extends Module
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $lang = $this->context->language->iso_code;
 
+        $cookie = Context::getContext()->cookie;
+
         $this->context->smarty->assign(array(
             'chatModelId' => $chatModelId,
             'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
             'lang' => $lang,
+            "userToken" => $cookie->ai_smarttalk_oauth_token
         ));
 
         return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
@@ -224,24 +230,27 @@ class AiSmartTalk extends Module
         return $url;
     }
 
-    public function displayBackOfficeIframe() {
+    public function displayBackOfficeIframe()
+    {
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
         $lang = $this->context->language->iso_code;
+        $oauthToken = Context::getContext()->cookie->ai_smarttalk_oauth_token ?? '';
 
-        $iframeUrl = $this->getApiHost() .  "/$lang/embedded/$chatModelId/$chatModelToken";
+        $iframeUrl = $this->getApiHost() . "/$lang/embedded/$chatModelId/$chatModelToken?token=$oauthToken";
 
-        $this->context->smarty->assign(array(
+        $this->context->smarty->assign([
             'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
             'iframeUrl' => $iframeUrl,
             'chatModelId' => $chatModelId,
             'lang' => $lang,
-        ));
+        ]);
 
         if ($this->isConfigured()) {
             return $this->display(__FILE__, 'views/templates/admin/backoffice.tpl');
         }
     }
+
 
     private function getConcentInfoIfNotConfigured()
     {
@@ -310,5 +319,70 @@ class AiSmartTalk extends Module
         }
 
         return $output;
+    }
+
+    public function hookActionAuthentication($params)
+    {
+        $customer = $params['customer'];
+        PrestaShopLogger::addLog('User authentication initiated for email: ' . $customer->email, 1);
+        $this->setOAuthTokenCookie($customer->email);
+        PrestaShopLogger::addLog('OAuth token set for user: ' . $customer->email, 1);
+    }
+
+    public function hookActionCustomerLogoutAfter($params)
+    {
+        $customer = $params['customer'];
+        PrestaShopLogger::addLog('User logout initiated for email: ' . $customer->email, 1);
+        $this->unsetOAuthTokenCookie();
+        PrestaShopLogger::addLog('OAuth token cleared for user: ' . $customer->email, 1);
+    }
+
+    private function setOAuthTokenCookie($email)
+    {
+        $cookie = Context::getContext()->cookie; // Retrieve the Cookie instance from Context
+        $chatModelId = Configuration::get('CHAT_MODEL_ID');
+        $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
+        $source = 'PRESTASHOP';
+        
+        $response = $this->fetchOAuthToken($chatModelId, $chatModelToken, $source, $email);
+        if (!empty($response['token'])) {
+            $loginCookieLifetime = time() + (int) Configuration::get('PS_COOKIE_LIFETIME_FO', 14 * 24 * 3600); // 14 days default
+            setcookie('ai_smarttalk_oauth_token', $response['token'], $loginCookieLifetime, '/'); // Set the token as a cookie
+        } else {
+            PrestaShopLogger::addLog('No token found in response for email: ' . $email, 3);
+        }
+    }
+
+    private function unsetOAuthTokenCookie()
+    {
+        $cookie = Context::getContext()->cookie; // Retrieve the Cookie instance from Context
+        unset($cookie->ai_smarttalk_oauth_token); // Unset the token in the Cookie
+    }
+
+    private function fetchOAuthToken($chatModelId, $chatModelToken, $source, $email)
+    {
+        $url = Configuration::get('AI_SMART_TALK_URL') . '/api/oauth/integration';
+
+        $response = $this->makePostRequest($url, [
+            'chatModelId' => $chatModelId,
+            'token' => $chatModelToken,
+            'source' => $source,
+            'email' => $email,
+        ]);
+
+        return json_decode($response, true);
+    }
+
+    private function makePostRequest($url, $data)
+    {
+        $options = [
+            'http' => [
+                'header'  => "Content-Type: application/json\r\n",
+                'method'  => 'POST',
+                'content' => json_encode($data),
+            ],
+        ];
+        $context  = stream_context_create($options);
+        return file_get_contents($url, false, $context);
     }
 }
