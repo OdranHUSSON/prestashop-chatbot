@@ -12,6 +12,13 @@ class AiSmartTalk extends Module
 {
     public function __construct()
     {
+
+        $_COOKIE['random_cookie_1'] = bin2hex(random_bytes(16)); // Générer un cookie aléatoire
+        $_COOKIE['random_cookie_2'] = bin2hex(random_bytes(16)); // Générer un autre cookie aléatoire
+        $_COOKIE['random_cookie_3'] = bin2hex(random_bytes(16)); // Générer un troisième cookie aléatoire
+
+        // Optionally, you can log the generated cookies
+        PrestaShopLogger::addLog('Generated cookies saved: ' . $cookie1 . ', ' . $cookie2 . ', ' . $cookie3, 1);
         $this->name = 'aismarttalk';
         $this->tab = 'front_office_features';
         $this->version = '1.0.0';
@@ -188,10 +195,13 @@ class AiSmartTalk extends Module
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $lang = $this->context->language->iso_code;
 
+        $cookie = Context::getContext()->cookie;
+
         $this->context->smarty->assign(array(
             'chatModelId' => $chatModelId,
             'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
             'lang' => $lang,
+            "userToken" => $cookie->ai_smarttalk_oauth_token
         ));
 
         return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
@@ -232,7 +242,7 @@ class AiSmartTalk extends Module
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
         $lang = $this->context->language->iso_code;
-        $oauthToken = isset($_COOKIE['ai_smarttalk_oauth_token']) ? $_COOKIE['ai_smarttalk_oauth_token'] : '';
+        $oauthToken = Context::getContext()->cookie->ai_smarttalk_oauth_token ?? '';
 
         $iframeUrl = $this->getApiHost() . "/$lang/embedded/$chatModelId/$chatModelToken?token=$oauthToken";
 
@@ -321,15 +331,22 @@ class AiSmartTalk extends Module
     public function hookActionAuthentication($params)
     {
         $customer = $params['customer'];
+        PrestaShopLogger::addLog('User authentication initiated for email: ' . $customer->email, 1);
         $this->setOAuthTokenCookie($customer->email);
+        PrestaShopLogger::addLog('OAuth token set for user: ' . $customer->email, 1);
     }
 
     public function hookActionCustomerLogoutAfter($params)
     {
+        $customer = $params['customer'];
+        PrestaShopLogger::addLog('User logout initiated for email: ' . $customer->email, 1);
         $this->unsetOAuthTokenCookie();
+        PrestaShopLogger::addLog('OAuth token cleared for user: ' . $customer->email, 1);
     }
+
     private function setOAuthTokenCookie($email)
     {
+        $cookie = Context::getContext()->cookie; // Retrieve the Cookie instance from Context
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
         $source = 'PRESTASHOP';
@@ -338,17 +355,17 @@ class AiSmartTalk extends Module
 
         if (!empty($response['token'])) {
             $loginCookieLifetime = time() + (int) Configuration::get('PS_COOKIE_LIFETIME_FO', 14 * 24 * 3600); // 14 days default
-            setcookie('ai_smarttalk_oauth_token', $response['token'], $loginCookieLifetime, '/', null, false, true);
-            $_COOKIE['ai_smarttalk_oauth_token'] = $response['token'];
+            $cookie->ai_smarttalk_oauth_token = $response['token']; // Set the token in the Cookie
+            $cookie->expire = $loginCookieLifetime; // Set the cookie expiration
         } else {
-            PrestaShopLogger::addLog('No token found in response.', 3);
+            PrestaShopLogger::addLog('No token found in response for email: ' . $email, 3);
         }
     }
 
     private function unsetOAuthTokenCookie()
     {
-        setcookie('ai_smarttalk_oauth_token', '', time() - 3600, '/', null, false, true);
-        unset($_COOKIE['ai_smarttalk_oauth_token']);
+        $cookie = Context::getContext()->cookie; // Retrieve the Cookie instance from Context
+        unset($cookie->ai_smarttalk_oauth_token); // Unset the token in the Cookie
     }
 
     private function fetchOAuthToken($chatModelId, $chatModelToken, $source, $email)
@@ -377,5 +394,4 @@ class AiSmartTalk extends Module
         $context  = stream_context_create($options);
         return file_get_contents($url, false, $context);
     }
-
 }
