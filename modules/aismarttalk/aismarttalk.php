@@ -7,6 +7,7 @@ require_once dirname(__FILE__) . '/vendor/autoload.php';
 
 use PrestaShop\AiSmartTalk\CleanProductDocuments;
 use PrestaShop\AiSmartTalk\SynchProductsToAiSmartTalk;
+use PrestaShop\AiSmartTalk\OAuthTokenHandler;
 
 class AiSmartTalk extends Module
 {
@@ -14,7 +15,7 @@ class AiSmartTalk extends Module
     {
         $this->name = 'aismarttalk';
         $this->tab = 'front_office_features';
-        $this->version = '1.0.0';
+        $this->version = '2.0.0';
         $this->author = 'AI SmartTalk';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = [
@@ -49,11 +50,37 @@ class AiSmartTalk extends Module
             || !$this->registerHook('actionProductUpdate')
             || !$this->registerHook('actionProductCreate')
             || !$this->registerHook('actionProductDelete')
+            //|| !$this->registerHook('actionAuthentication')
+            //|| !$this->registerHook('actionCustomerLogout')
             || !$this->addSynchField()
             || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) { // Add default configuration for enabling/disabling the chatbot
             return false;
         }
         return true;
+    }
+
+    public function uninstall()
+    {
+        return parent::uninstall()
+            && $this->unregisterHook('displayFooter')
+            && $this->unregisterHook('actionProductUpdate')
+            && $this->unregisterHook('actionProductCreate')
+            && $this->unregisterHook('actionProductDelete')
+            //&& $this->unregisterHook('actionAuthentication')
+            //&& $this->unregisterHook('actionCustomerLogout')
+            //&& $this->removeSynchField()
+            && Configuration::deleteByName('AI_SMART_TALK_ENABLED');
+    }
+
+    public function hookActionAuthentication($params)
+    {
+        $customer = $params['customer'];
+        OAuthTokenHandler::setOAuthTokenCookie($customer);
+    }
+
+    public function hookActionCustomerLogout($params)
+    {
+        OAuthTokenHandler::unsetOAuthTokenCookie();
     }
 
     private function addSynchField()
@@ -71,6 +98,27 @@ class AiSmartTalk extends Module
         // If the column does not exist, add it
         if (empty($columnExists)) {
             $sql = 'ALTER TABLE '._DB_PREFIX_.'product ADD COLUMN aismarttalk_synch TINYINT(1) NOT NULL DEFAULT 0;';
+            return Db::getInstance()->execute($sql);
+        }
+
+        return true;
+    }
+
+    private function removeSynchField()
+    {
+        // Check if the column exists before attempting to remove it
+        $columnExists = Db::getInstance()->execute(
+            'SELECT COLUMN_NAME 
+         FROM information_schema.COLUMNS 
+         WHERE 
+             TABLE_SCHEMA = "'._DB_PREFIX_.'product" AND 
+             TABLE_NAME = "product" AND 
+             COLUMN_NAME = "aismarttalk_synch"'
+        );
+
+        // If the column exists, remove it
+        if (!empty($columnExists)) {
+            $sql = 'ALTER TABLE '._DB_PREFIX_.'product DROP COLUMN aismarttalk_synch;';
             return Db::getInstance()->execute($sql);
         }
 
@@ -189,28 +237,27 @@ class AiSmartTalk extends Module
             'chatModelId' => $chatModelId,
             'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
             'lang' => $lang,
+            'source' => 'PRESTASHOP',
+            'userToken' => $this->context->cookie->ai_smarttalk_oauth_token,
         ));
 
         return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
     }
 
     public function hookActionProductUpdate($params) {
-        $product = $params['product'];
-        $idProduct = $product->id;
+        $idProduct = $params['id_product'];
         $api = new SynchProductsToAiSmartTalk();
         $api(['productIds' => [(string) $idProduct], "forceSync" => true]);
     }
 
     public function hookActionProductCreate($params) {
-        $product = $params['product'];
-        $idProduct = $product->id;
+        $idProduct = $params['id_product'];
         $api = new SynchProductsToAiSmartTalk();
         $api(['productIds' => [(string) $idProduct], "forceSync" => true]);
     }
 
     public function hookActionProductDelete($params) {
-        $product = $params['product'];
-        $idProduct = $product->id;
+        $idProduct = $params['id_product'];
         $api = new CleanProductDocuments();
         $api(['productIds' => [(string) $idProduct]]);
     }

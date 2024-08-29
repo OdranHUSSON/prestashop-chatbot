@@ -1,4 +1,3 @@
-version: '3'
 services:
   prestashop:
     container_name: prestashop
@@ -37,6 +36,18 @@ services:
       - ai-toolkit-network
     volumes:
       - dbdata:/var/lib/mysql
+
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - 8080:80
+    environment:
+      - PMA_HOST=prestashop_db
+      - PMA_USER=prestashop
+      - PMA_PASSWORD=prestashop
+    networks:
+      - ai-toolkit-network
 
 networks:
   ai-toolkit-network:
