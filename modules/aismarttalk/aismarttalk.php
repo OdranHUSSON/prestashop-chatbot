@@ -7,6 +7,7 @@ require_once dirname(__FILE__) . '/vendor/autoload.php';
 
 use PrestaShop\AiSmartTalk\CleanProductDocuments;
 use PrestaShop\AiSmartTalk\SynchProductsToAiSmartTalk;
+use PrestaShop\AiSmartTalk\OAuthTokenHandler;
 
 class AiSmartTalk extends Module
 {
@@ -14,7 +15,7 @@ class AiSmartTalk extends Module
     {
         $this->name = 'aismarttalk';
         $this->tab = 'front_office_features';
-        $this->version = '1.0.0';
+        $this->version = '2.0.0';
         $this->author = 'AI SmartTalk';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = [
@@ -44,41 +45,63 @@ class AiSmartTalk extends Module
 
     public function install()
     {
-        if (!parent::install()
+        if (
+            !parent::install()
             || !$this->registerHook('displayFooter')
             || !$this->registerHook('actionProductUpdate')
             || !$this->registerHook('actionProductCreate')
             || !$this->registerHook('actionProductDelete')
+            || !$this->registerHook('actionAuthentication')
+            || !$this->registerHook('actionCustomerLogout')
             || !$this->addSynchField()
-            || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) { // Add default configuration for enabling/disabling the chatbot
+            || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)
+        ) { // Add default configuration for enabling/disabling the chatbot
             return false;
         }
         return true;
     }
 
-    private function addSynchField()
+    public function uninstall()
     {
-        // Check if the column already exists
-        $columnExists = Db::getInstance()->execute(
-            'SELECT COLUMN_NAME 
-         FROM information_schema.COLUMNS 
-         WHERE 
-             TABLE_SCHEMA = "'._DB_PREFIX_.'product" AND 
-             TABLE_NAME = "product" AND 
-             COLUMN_NAME = "aismarttalk_synch"'
-        );
-
-        // If the column does not exist, add it
-        if (empty($columnExists)) {
-            $sql = 'ALTER TABLE '._DB_PREFIX_.'product ADD COLUMN aismarttalk_synch TINYINT(1) NOT NULL DEFAULT 0;';
-            return Db::getInstance()->execute($sql);
-        }
-
-        return true;
+        return parent::uninstall()
+            && $this->unregisterHook('displayFooter')
+            && $this->unregisterHook('actionProductUpdate')
+            && $this->unregisterHook('actionProductCreate')
+            && $this->unregisterHook('actionProductDelete')
+            && $this->unregisterHook('actionAuthentication')
+            && $this->unregisterHook('actionCustomerLogout')
+            && $this->removeSynchField()
+            && Configuration::deleteByName('AI_SMART_TALK_ENABLED');
     }
 
+    public function hookActionAuthentication($params)
+    {
+        $customer = $params['customer'];
+        OAuthTokenHandler::setOAuthTokenCookie($customer);
+    }
 
-    public function getContent() {
+    public function hookActionCustomerLogout($params)
+    {
+        OAuthTokenHandler::unsetOAuthTokenCookie();
+    }
+
+    private function addSynchField()
+    {
+            Db::getInstance()->execute('ALTER TABLE ' . _DB_PREFIX_ . 'product ADD COLUMN aismarttalk_synch TINYINT(1) NOT NULL DEFAULT 0');
+        
+        return true;
+    }
+    
+    private function removeSynchField()
+    {
+            Db::getInstance()->execute('ALTER TABLE ' . _DB_PREFIX_ . 'product DROP COLUMN aismarttalk_synch');
+        
+        return true;
+    }
+    
+
+    public function getContent()
+    {
         $output = '';
 
         if (Tools::getValue('resetConfiguration') === $this->name) {
@@ -102,12 +125,12 @@ class AiSmartTalk extends Module
         $output .= $this->isConfigured() ? $this->displayButtons() : ''; // Afficher le bouton si configuré
 
         if (Tools::isSubmit('submitToggleChatbot')) {
-            $chatbotEnabled = (bool)Tools::getValue('AI_SMART_TALK_ENABLED');
+            $chatbotEnabled = (bool) Tools::getValue('AI_SMART_TALK_ENABLED');
             Configuration::updateValue('AI_SMART_TALK_ENABLED', $chatbotEnabled);
             $output .= $this->displayConfirmation($this->l('Settings updated.'));
         }
 
-        $output .= $this->displayChatbotToggleForm();        
+        $output .= $this->displayChatbotToggleForm();
 
         return $output;
     }
@@ -125,14 +148,15 @@ class AiSmartTalk extends Module
         return $form;
     }
 
-    public function displayForm() {
+    public function displayForm()
+    {
         // If already configured, no need to display the form
         if ($this->isConfigured() && empty(Configuration::get('AI_SMART_TALK_ERROR'))) {
             return '';
         }
 
         // Formulaires pour la configuration du module
-        $default_lang = (int)Configuration::get('PS_LANG_DEFAULT');
+        $default_lang = (int) Configuration::get('PS_LANG_DEFAULT');
 
         $fields_form[0]['form'] = [
             'legend' => [
@@ -160,7 +184,7 @@ class AiSmartTalk extends Module
             'submit' => [
                 'title' => $this->l('Synchroniser'),
                 'class' => 'btn btn-default pull-right',
-                'name' => 'submit'.$this->name,
+                'name' => 'submit' . $this->name,
             ]
         ];
 
@@ -168,9 +192,9 @@ class AiSmartTalk extends Module
         $helper->module = $this;
         $helper->name_controller = $this->name;
         $helper->token = Tools::getAdminTokenLite('AdminModules');
-        $helper->currentIndex = AdminController::$currentIndex.'&configure='.$this->name;
+        $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
         $helper->title = $this->displayName;
-        $helper->submit_action = 'submit'.$this->name;
+        $helper->submit_action = 'submit' . $this->name;
         $helper->fields_value['AI_SMART_TALK_URL'] = Configuration::get('AI_SMART_TALK_URL');
         $helper->fields_value['CHAT_MODEL_ID'] = Configuration::get('CHAT_MODEL_ID');
         $helper->fields_value['CHAT_MODEL_TOKEN'] = Configuration::get('CHAT_MODEL_TOKEN');
@@ -178,7 +202,8 @@ class AiSmartTalk extends Module
         return $helper->generateForm($fields_form);
     }
 
-    public function hookDisplayFooter($params) {
+    public function hookDisplayFooter($params)
+    {
         if (!Configuration::get('AI_SMART_TALK_ENABLED')) {
             return '';
         }
@@ -189,33 +214,36 @@ class AiSmartTalk extends Module
             'chatModelId' => $chatModelId,
             'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
             'lang' => $lang,
+            'source' => 'PRESTASHOP',
+            'userToken' => $_COOKIE['ai_smarttalk_oauth_token'],
         ));
 
         return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
     }
 
-    public function hookActionProductUpdate($params) {
-        $product = $params['product'];
-        $idProduct = $product->id;
+    public function hookActionProductUpdate($params)
+    {
+        $idProduct = $params['id_product'];
         $api = new SynchProductsToAiSmartTalk();
         $api(['productIds' => [(string) $idProduct], "forceSync" => true]);
     }
 
-    public function hookActionProductCreate($params) {
-        $product = $params['product'];
-        $idProduct = $product->id;
+    public function hookActionProductCreate($params)
+    {
+        $idProduct = $params['id_product'];
         $api = new SynchProductsToAiSmartTalk();
         $api(['productIds' => [(string) $idProduct], "forceSync" => true]);
     }
 
-    public function hookActionProductDelete($params) {
-        $product = $params['product'];
-        $idProduct = $product->id;
+    public function hookActionProductDelete($params)
+    {
+        $idProduct = $params['id_product'];
         $api = new CleanProductDocuments();
         $api(['productIds' => [(string) $idProduct]]);
     }
 
-    private function getApiHost() {
+    private function getApiHost()
+    {
         $url = Configuration::get('AI_SMART_TALK_URL');
 
         if (strpos($url, 'http://ai-toolkit-node:3000') !== false) {
@@ -224,12 +252,13 @@ class AiSmartTalk extends Module
         return $url;
     }
 
-    public function displayBackOfficeIframe() {
+    public function displayBackOfficeIframe()
+    {
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
         $lang = $this->context->language->iso_code;
 
-        $iframeUrl = $this->getApiHost() .  "/$lang/embedded/$chatModelId/$chatModelToken";
+        $iframeUrl = $this->getApiHost() . "/$lang/embedded/$chatModelId/$chatModelToken";
 
         $this->context->smarty->assign(array(
             'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
@@ -248,7 +277,7 @@ class AiSmartTalk extends Module
         return !$this->isConfigured()
             ? "<div class='alert alert-info'>
                     Veuillez renseigner les paramètres du chat model. <br>
-                    Si vous n'avez pas encore de compte <a target='_blank' href='".Configuration::get('AI_SMART_TALK_URL')."'>AI SmartTalk</a>, vous pouvez en créer un <a target='_blank' href='".Configuration::get('AI_SMART_TALK_URL')."'>ici</a>
+                    Si vous n'avez pas encore de compte <a target='_blank' href='" . Configuration::get('AI_SMART_TALK_URL') . "'>AI SmartTalk</a>, vous pouvez en créer un <a target='_blank' href='" . Configuration::get('AI_SMART_TALK_URL') . "'>ici</a>
                </div>"
             : '';
     }
@@ -263,7 +292,7 @@ class AiSmartTalk extends Module
     private function handleForm()
     {
         $output = '';
-        if (Tools::isSubmit('submit'.$this->name)) {
+        if (Tools::isSubmit('submit' . $this->name)) {
             Configuration::updateValue('CHAT_MODEL_ID', Tools::getValue('CHAT_MODEL_ID'));
             Configuration::updateValue('CHAT_MODEL_TOKEN', Tools::getValue('CHAT_MODEL_TOKEN'));
 
@@ -273,14 +302,15 @@ class AiSmartTalk extends Module
         return $output;
     }
 
-    private function displayButtons() {
+    private function displayButtons()
+    {
         $html = "";
 
-        $html .= "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&forceSync=false&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-left'>Synchroniser les nouveaux produits</a>";
-        $html .= "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&forceSync=true&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-left'>ReSynchroniser tous les produits</a>";
-        $html .= "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&clean=true&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-left'>Nettoyer</a>";
+        $html .= "<a href='" . AdminController::$currentIndex . '&configure=' . $this->name . '&forceSync=false&token=' . Tools::getAdminTokenLite('AdminModules') . "' class='btn btn-default pull-left'>Synchroniser les nouveaux produits</a>";
+        $html .= "<a href='" . AdminController::$currentIndex . '&configure=' . $this->name . '&forceSync=true&token=' . Tools::getAdminTokenLite('AdminModules') . "' class='btn btn-default pull-left'>ReSynchroniser tous les produits</a>";
+        $html .= "<a href='" . AdminController::$currentIndex . '&configure=' . $this->name . '&clean=true&token=' . Tools::getAdminTokenLite('AdminModules') . "' class='btn btn-default pull-left'>Nettoyer</a>";
 
-        $html .= "<a href='".AdminController::$currentIndex.'&configure='.$this->name .'&resetConfiguration='.$this->name.'&token='.Tools::getAdminTokenLite('AdminModules')."' class='btn btn-default pull-left'>Charger un autre modèle de chat</a>";
+        $html .= "<a href='" . AdminController::$currentIndex . '&configure=' . $this->name . '&resetConfiguration=' . $this->name . '&token=' . Tools::getAdminTokenLite('AdminModules') . "' class='btn btn-default pull-left'>Charger un autre modèle de chat</a>";
 
         return $html;
     }
@@ -296,7 +326,7 @@ class AiSmartTalk extends Module
     private function sync(bool $force = false, $output = "")
     {
         $api = new SynchProductsToAiSmartTalk();
-        $isSynch = $api(['forceSync' =>$force]);
+        $isSynch = $api(['forceSync' => $force]);
 
         if (true === $isSynch) {
             if ($force) {
