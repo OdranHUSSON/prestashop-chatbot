@@ -4,6 +4,30 @@
       <div class="col-md-6">
           <div class="panel">
               <div class="panel-heading">
+                  {l s='Chatbot Settings' mod='aismarttalk'}
+              </div>
+              <div class="panel-body">
+                  <form action="{$smarty.server.REQUEST_URI|escape:'html':'UTF-8'}" method="post">
+                      <div class="form-group">
+                          <label>{l s='Enable Chatbot:' mod='aismarttalk'}</label>
+                          <span class="switch prestashop-switch fixed-width-lg">
+                              <input type="radio" name="AI_SMART_TALK_ENABLED" id="AI_SMART_TALK_ENABLED_on" value="1" {if $AI_SMART_TALK_ENABLED}checked="checked"{/if}>
+                              <label for="AI_SMART_TALK_ENABLED_on">{l s='Yes' mod='aismarttalk'}</label>
+                              <input type="radio" name="AI_SMART_TALK_ENABLED" id="AI_SMART_TALK_ENABLED_off" value="0" {if !$AI_SMART_TALK_ENABLED}checked="checked"{/if}>
+                              <label for="AI_SMART_TALK_ENABLED_off">{l s='No' mod='aismarttalk'}</label>
+                              <a class="slide-button btn"></a>
+                          </span>
+                      </div>
+                      <button type="submit" name="submitToggleChatbot" class="btn btn-default">
+                          {l s='Save' mod='aismarttalk'}
+                      </button>
+                  </form>
+              </div>
+          </div>
+      </div>
+      <div class="col-md-6">
+          <div class="panel">
+              <div class="panel-heading">
                   {l s='Synchronization' mod='aismarttalk'}
               </div>
               <div class="panel-body">
@@ -16,6 +40,8 @@
               </div>
           </div>
       </div>
+  </div>
+  <div class="row">
       <div class="col-md-6">
           <div class="panel">
               <div class="panel-heading">
@@ -31,9 +57,7 @@
               </div>
           </div>
       </div>
-  </div>
-  <div class="row">
-      <div class="col-md-12">
+      <div class="col-md-6">
           <div class="panel">
               <div class="panel-heading">
                   {l s='AI SmartTalk Backoffice' mod='aismarttalk'}
@@ -47,13 +71,3 @@
       </div>
   </div>
 </div>
-
-<!-- views/templates/admin/backoffice.tpl -->
-<script>
-    window.chatbotSettings = {
-      lang: "{$lang}"
-    };
-</script>
-<iframe src="{$iframeUrl}" width="100%" height="800px"></iframe>
-<script type="text/javascript" src="{$CDN}/cdn?chatModelId={$chatModelId}" async></script>
-<div id="chatbot">Loading ...</div>
