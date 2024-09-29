@@ -139,6 +139,7 @@ class AiSmartTalk extends Module
 
         $this->context->smarty->assign([
             'AI_SMART_TALK_ENABLED' => (bool)Configuration::get('AI_SMART_TALK_ENABLED'),
+            'backofficeUrl' => Configuration::get('AI_SMART_TALK_URL') . "/" . $this->context->language->iso_code . "/admin/chatModel/" . Configuration::get('CHAT_MODEL_ID'),
         ]);
 
         $output .= $this->handleForm();
