@@ -53,9 +53,13 @@ class AiSmartTalk extends Module
             || !$this->registerHook('actionProductDelete')
             || !$this->registerHook('actionAuthentication')
             || !$this->registerHook('actionCustomerLogout')
+            || !$this->registerHook('actionCartSave')
+            || !$this->registerHook('actionValidateOrder')
+            || !$this->registerHook('actionCartCreate') // Add this line
             || !$this->addSynchField()
+            || !$this->installHooksTable()
             || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)
-        ) { // Add default configuration for enabling/disabling the chatbot
+        ) {
             return false;
         }
         return true;
@@ -70,7 +74,11 @@ class AiSmartTalk extends Module
             && $this->unregisterHook('actionProductDelete')
             && $this->unregisterHook('actionAuthentication')
             && $this->unregisterHook('actionCustomerLogout')
+            && $this->unregisterHook('actionCartSave')
+            && $this->unregisterHook('actionValidateOrder')
+            && $this->unregisterHook('actionCartCreate') // Add this line
             && $this->removeSynchField()
+            && $this->uninstallHooksTable()
             && Configuration::deleteByName('AI_SMART_TALK_ENABLED');
     }
 
@@ -104,6 +112,17 @@ class AiSmartTalk extends Module
     {
         $output = '';
 
+        if (Tools::isSubmit('submitToggleChatbot')) {
+            $chatbotEnabled = (bool) Tools::getValue('AI_SMART_TALK_ENABLED');
+            Configuration::updateValue('AI_SMART_TALK_ENABLED', $chatbotEnabled);
+            $output .= $this->displayConfirmation($this->l('Chatbot settings updated.'));
+        }
+
+        if (Tools::isSubmit('submit' . $this->name . '_hooks')) {
+            $this->processHookConfigurationForm();
+            $output .= $this->displayConfirmation($this->l('Hook settings updated.'));
+        }
+
         if (Tools::getValue('resetConfiguration') === $this->name) {
             $this->resetConfiguration();
         }
@@ -118,18 +137,16 @@ class AiSmartTalk extends Module
             $output .= $this->displayConfirmation($this->trans('Deleted and inactive products have been cleaned.', [], 'Modules.Aismarttalk.Admin'));
         }
 
+        $this->context->smarty->assign([
+            'AI_SMART_TALK_ENABLED' => (bool)Configuration::get('AI_SMART_TALK_ENABLED'),
+            'backofficeUrl' => Configuration::get('AI_SMART_TALK_URL') . "/" . $this->context->language->iso_code . "/admin/chatModel/" . Configuration::get('CHAT_MODEL_ID'),
+        ]);
+
         $output .= $this->handleForm();
         $output .= $this->getConcentInfoIfNotConfigured();
         $output .= $this->displayForm();
-        $output .= $this->displayBackOfficeIframe();
-
-        if (Tools::isSubmit('submitToggleChatbot')) {
-            $chatbotEnabled = (bool) Tools::getValue('AI_SMART_TALK_ENABLED');
-            Configuration::updateValue('AI_SMART_TALK_ENABLED', $chatbotEnabled);
-            $output .= $this->displayConfirmation($this->trans('Settings updated.', [], 'Modules.Aismarttalk.Admin'));
-        }
-
-        $output .= $this->displayChatbotToggleForm();
+        $output .= $this->display(__FILE__, 'views/templates/admin/backoffice.tpl');
+        $output .= $this->displayHookConfigurationForm();
 
         return $output;
     }
@@ -334,5 +351,245 @@ class AiSmartTalk extends Module
         }
 
         return $output;
+    }
+
+    private function installHooksTable()
+    {
+        return Db::getInstance()->execute('
+            CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'aismarttalk_hooks` (
+                `id_hook` int(10) unsigned NOT NULL AUTO_INCREMENT,
+                `hook_name` varchar(255) NOT NULL,
+                `workflow_slug` varchar(255) NOT NULL,
+                `is_enabled` tinyint(1) NOT NULL DEFAULT "0",
+                PRIMARY KEY (`id_hook`)
+            ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;
+        ');
+    }
+
+    private function uninstallHooksTable()
+    {
+        return Db::getInstance()->execute('DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'aismarttalk_hooks`');
+    }
+
+    private function callAiSmartTalkApi($workflowSlug, $data)
+    {
+        $chatModelId = Configuration::get('CHAT_MODEL_ID');
+        $workflowSlug = 'prestashop_' . $this->toSnakeCase($workflowSlug);
+        $apiUrl = Configuration::get('AI_SMART_TALK_URL') . "/api/chatmodel/{$chatModelId}/{$workflowSlug}";
+
+        $ch = curl_init($apiUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $errorMsg = curl_error($ch);
+        curl_close($ch);
+
+        if ($httpCode >= 200 && $httpCode < 300) {
+            return json_decode($response, true);
+        } else {
+            $errorDetails = "URL: {$apiUrl}, HTTP Code: {$httpCode}, Error: {$errorMsg}, Response: {$response}";
+            PrestaShopLogger::addLog("AiSmartTalk API error: " . $errorDetails, 3);
+            return false;
+        }
+    }
+
+    private function toSnakeCase($string)
+    {
+        return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $string));
+    }
+
+    public function hookActionCartSave($params)
+    {
+        if (!$this->isHookEnabled('actionCartSave')) {
+            return;
+        }
+
+        $cart = $params['cart'];
+        $data = [
+            'cart_id' => $cart->id,
+            'customer_id' => $cart->id_customer,
+            'total_products' => $cart->nbProducts(),
+            'chatModelToken' => Configuration::get('CHAT_MODEL_TOKEN'),
+        ];
+
+        $this->callAiSmartTalkApi('cartUpdated', $data);
+    }
+
+    public function hookActionValidateOrder($params)
+    {
+        if (!$this->isHookEnabled('actionValidateOrder')) {
+            return;
+        }
+
+        $order = $params['order'];
+        $data = [
+            'order_id' => $order->id,
+            'customer_id' => $order->id_customer,
+            'total_paid' => $order->total_paid,
+            'chatModelToken' => Configuration::get('CHAT_MODEL_TOKEN'),
+        ];
+
+        $this->callAiSmartTalkApi('orderPlaced', $data);
+    }
+
+    public function hookActionCartCreate($params)
+    {
+        if (!$this->isHookEnabled('actionCartCreate')) {
+            return;
+        }
+
+        $cart = $params['cart'];
+        $data = [
+            'cart_id' => $cart->id,
+            'customer_id' => $cart->id_customer,
+            'total_products' => $cart->nbProducts(),
+            'chatModelToken' => Configuration::get('CHAT_MODEL_TOKEN'),
+        ];
+
+        $this->callAiSmartTalkApi('cartCreated', $data);
+    }
+
+    private function isHookEnabled($hookName)
+    {
+        $sql = 'SELECT is_enabled FROM `' . _DB_PREFIX_ . 'aismarttalk_hooks` WHERE hook_name = "' . pSQL($hookName) . '"';
+        return (bool) Db::getInstance()->getValue($sql);
+    }
+
+    private function processHookConfigurationForm()
+    {
+        $hooks = [
+            'actionCartSave' => 'prestashop_cart_updated',
+            'actionValidateOrder' => 'prestashop_order_placed',
+        ];
+
+        foreach ($hooks as $hookName => $workflowSlug) {
+            $isEnabled = Tools::getValue($hookName . '_enabled');
+            $this->updateHookConfiguration($hookName, $workflowSlug, $isEnabled);
+        }
+    }
+
+    private function updateHookConfiguration($hookName, $workflowSlug, $isEnabled)
+    {
+        $sql = 'INSERT INTO `' . _DB_PREFIX_ . 'aismarttalk_hooks` 
+                (hook_name, workflow_slug, is_enabled) 
+                VALUES ("' . pSQL($hookName) . '", "' . pSQL($workflowSlug) . '", ' . (int)$isEnabled . ') 
+                ON DUPLICATE KEY UPDATE is_enabled = ' . (int)$isEnabled;
+        
+        Db::getInstance()->execute($sql);
+    }
+
+    private function displayHookConfigurationForm()
+    {
+        $hooks = [
+            'actionCartSave' => [
+                'label' => $this->l('Cart Updated'),
+                'description' => $this->l('Trigger actions when a customer updates their cart'),
+            ],
+            'actionValidateOrder' => [
+                'label' => $this->l('Order Placed'),
+                'description' => $this->l('Trigger actions when a customer places an order'),
+            ],            
+        ];
+
+        $form = '<div class="panel">
+            <h3><i class="icon icon-cogs"></i> ' . $this->l('Smartflows') . '</h3>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>' . $this->l('Hook') . '</th>
+                            <th>' . $this->l('Description') . '</th>
+                            <th>' . $this->l('Status') . '</th>
+                            <th>' . $this->l('Test') . '</th>
+                        </tr>
+                    </thead>
+                    <tbody>';
+
+        foreach ($hooks as $hookName => $hookInfo) {
+            $isEnabled = $this->isHookEnabled($hookName);
+            $form .= '
+                <tr>
+                    <td>' . $hookInfo['label'] . '</td>
+                    <td>' . $hookInfo['description'] . '</td>
+                    <td>
+                        <span class="switch prestashop-switch fixed-width-lg">
+                            <input type="radio" name="' . $hookName . '_enabled" id="' . $hookName . '_enabled_on" value="1" ' . ($isEnabled ? 'checked="checked"' : '') . '>
+                            <label for="' . $hookName . '_enabled_on">' . $this->l('Yes') . '</label>
+                            <input type="radio" name="' . $hookName . '_enabled" id="' . $hookName . '_enabled_off" value="0" ' . (!$isEnabled ? 'checked="checked"' : '') . '>
+                            <label for="' . $hookName . '_enabled_off">' . $this->l('No') . '</label>
+                            <a class="slide-button btn"></a>
+                        </span>
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-default test-hook" data-hook="' . $hookName . '">
+                            <i class="icon icon-play"></i> ' . $this->l('Test') . '
+                        </button>
+                    </td>
+                </tr>';
+        }
+
+        $form .= '
+                </tbody>
+            </table>
+        </div>
+        <div class="panel-footer">
+            <button type="submit" name="submit' . $this->name . '_hooks" class="btn btn-default pull-right">
+                <i class="process-icon-save"></i> ' . $this->l('Save') . '
+            </button>
+        </div>
+    </div>';
+
+    return $form;
+    }
+
+    public function ajaxProcessTestHook()
+    {
+        $hookName = Tools::getValue('hook');
+        $response = ['success' => false, 'message' => ''];
+
+        if (in_array($hookName, ['actionCartSave', 'actionValidateOrder', 'actionCartCreate'])) {
+            $workflowSlug = ($hookName === 'actionCartSave') ? 'cartUpdated' : 
+                            (($hookName === 'actionValidateOrder') ? 'orderPlaced' : 'cartCreated');
+            
+            $data = [
+                'test' => true,
+                'chatModelToken' => Configuration::get('CHAT_MODEL_TOKEN'),
+                'chatModelId' => Configuration::get('CHAT_MODEL_ID'),
+                'source' => 'PRESTASHOP'
+            ];
+
+            if ($hookName === 'actionCartSave' || $hookName === 'actionCartCreate') {
+                $data['cart_id'] = 'test_cart_id';
+                $data['customer_id'] = 'test_customer_id';
+                $data['total_price'] = 99.99;
+                $data['total_products'] = 3;
+            } elseif ($hookName === 'actionValidateOrder') {
+                $data['order_id'] = 'test_order_id';
+                $data['customer_id'] = 'test_customer_id';
+                $data['total_price'] = 99.99;
+                $data['total_paid'] = 99.99;
+            }
+
+            // Call the API
+            $apiResponse = $this->callAiSmartTalkApi($workflowSlug, $data);
+
+            if ($apiResponse !== false) {
+                $response['success'] = true;
+                $response['message'] = $this->l('Webhook tested successfully.');
+            } else {
+                $response['message'] = $this->l('Error testing webhook. Please check the logs for more information.');
+            }
+        } else {
+            $response['message'] = $this->l('Invalid hook name.');
+        }
+
+        header('Content-Type: application/json');
+        die(json_encode($response));
     }
 }
