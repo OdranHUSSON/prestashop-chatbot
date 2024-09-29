@@ -1,7 +1,9 @@
+version: '3'
 services:
   prestashop:
     container_name: prestashop
     image: prestashop/prestashop
+    platform: linux/amd64
     ports:
       - 80:80
     environment:
@@ -25,6 +27,7 @@ services:
   prestashop_db:
     container_name: prestashop_db
     image: mysql:5.7
+    platform: linux/amd64
     ports:
       - 3306:3306
     environment:

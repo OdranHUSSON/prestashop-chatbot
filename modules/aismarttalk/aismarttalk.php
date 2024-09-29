@@ -258,11 +258,11 @@ class AiSmartTalk extends Module
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
         $lang = $this->context->language->iso_code;
 
-        $iframeUrl = $this->getApiHost() . "/$lang/embedded/$chatModelId/$chatModelToken";
+        $backofficeUrl = $this->getApiHost() . "/admin/chatModel/" . $chatModelId;
 
         $this->context->smarty->assign(array(
             'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
-            'iframeUrl' => $iframeUrl,
+            'backofficeUrl' => $backofficeUrl,
             'chatModelId' => $chatModelId,
             'lang' => $lang,
         ));
@@ -304,15 +304,7 @@ class AiSmartTalk extends Module
 
     private function displayButtons()
     {
-        $html = "";
-
-        $html .= "<a href='" . AdminController::$currentIndex . '&configure=' . $this->name . '&forceSync=false&token=' . Tools::getAdminTokenLite('AdminModules') . "' class='btn btn-default pull-left'>Synchroniser les nouveaux produits</a>";
-        $html .= "<a href='" . AdminController::$currentIndex . '&configure=' . $this->name . '&forceSync=true&token=' . Tools::getAdminTokenLite('AdminModules') . "' class='btn btn-default pull-left'>ReSynchroniser tous les produits</a>";
-        $html .= "<a href='" . AdminController::$currentIndex . '&configure=' . $this->name . '&clean=true&token=' . Tools::getAdminTokenLite('AdminModules') . "' class='btn btn-default pull-left'>Nettoyer</a>";
-
-        $html .= "<a href='" . AdminController::$currentIndex . '&configure=' . $this->name . '&resetConfiguration=' . $this->name . '&token=' . Tools::getAdminTokenLite('AdminModules') . "' class='btn btn-default pull-left'>Charger un autre modèle de chat</a>";
-
-        return $html;
+        return '';
     }
 
     private function resetConfiguration()
