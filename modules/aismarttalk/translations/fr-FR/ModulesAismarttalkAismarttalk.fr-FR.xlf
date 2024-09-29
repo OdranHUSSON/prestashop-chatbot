@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+  <file original="admin1589tiszp45prex6igl" source-language="fr-FR" target-language="fr-FR" datatype="plaintext">
+    <body>
+      <trans-unit id="e1794ed0db041f2ec518da7a8d155848">
+        <source>AI SmartTalk</source>
+        <target>AI SmartTalk</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="d239fa270b40f51dd18b997b6cea1788">
+        <source>https://aismarttalk.tech/</source>
+        <target>https://aismarttalk.tech/</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="876f23178c29dc2552c0b48bf23cd9bd">
+        <source>Are you sure you want to uninstall?</source>
+        <target>Êtes-vous sûr de vouloir désinstaller ?</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="5f82d791e1f90c1bddcbc0d883764faf">
+        <source>Deleted and inactive products have been cleaned.</source>
+        <target>Les produits supprimés et inactifs ont été nettoyés.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="f38f5974cdc23279ffe6d203641a8bdf">
+        <source>Settings updated.</source>
+        <target>Paramètres mis à jour.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="a77fdee20ab43b94ba4a5905323fa8fd">
+        <source>Enable Chatbot:</source>
+        <target>Activer le Chatbot :</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="c9cc8cce247e49bae79f15173ce97354">
+        <source>Save</source>
+        <target>Enregistrer</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="3225a10b07f1580f10dee4abc3779e6c">
+        <source>Parameters</source>
+        <target>Paramètres</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="3337e668e4f9e828ba746fbd72f5f4fd">
+        <source>Chat Model ID</source>
+        <target>ID du modèle de chat</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="cf774db1bfa4859a57494d74c26c9265">
+        <source>ID of the chat model</source>
+        <target>ID du modèle de chat</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="c263acd2d556f89030fb78aa60e8d462">
+        <source>Chat Model Token</source>
+        <target>Jeton du modèle de chat</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="8a41ceb8fd41db9ec2d30459bd450cc2">
+        <source>Token of the chat model</source>
+        <target>Jeton du modèle de chat</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="b18b960c57a784907dc1cd97ba8a8065">
+        <source>Synchronize</source>
+        <target>Synchroniser</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="736281e9ee7698ccc3f6d950de26142b">
+        <source>Please enter the chat model parameters.</source>
+        <target>Veuillez saisir les paramètres du modèle de chat.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="494b4e6b951e1e1ccc79580a3891f7d9">
+        <source>If you don't have an %s account yet, you can create one %s.</source>
+        <target>Si vous n'avez pas encore de compte %s, vous pouvez en créer un %s.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="6c92285fa6d3e827b198d120ea3ac674">
+        <source>here</source>
+        <target>ici</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="514d8d2427db3e1cbde5db75c7072623">
+        <source>All products have been synchronized with the API.</source>
+        <target>Tous les produits ont été synchronisés avec l'API.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="85a84aba7e86742fdd4212d1cb2d3999">
+        <source>New products have been synchronized with the API.</source>
+        <target>Les nouveaux produits ont été synchronisés avec l'API.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="b3ea0779cf68d208f2c0063c60641852">
+        <source>An error occurred during synchronization with the API.</source>
+        <target>Une erreur s'est produite lors de la synchronisation avec l'API.</target>
+        <note>Line: </note>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>

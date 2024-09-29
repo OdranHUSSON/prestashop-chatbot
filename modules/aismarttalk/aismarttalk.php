@@ -26,10 +26,10 @@ class AiSmartTalk extends Module
 
         parent::__construct();
 
-        $this->displayName = $this->trans('AI SmartTalk', [], 'Modules.Futureai.Admin');
-        $this->description = $this->trans('https://aismarttalk.tech/', [], 'Modules.Futureai.Admin');
+        $this->displayName = $this->trans('AI SmartTalk', [], 'Modules.Aismarttalk.Admin');
+        $this->description = $this->trans('https://aismarttalk.tech/', [], 'Modules.Aismarttalk.Admin');
 
-        $this->confirmUninstall = $this->trans('Are you sure you want to uninstall?', [], 'Modules.Futureai.Admin');
+        $this->confirmUninstall = $this->trans('Are you sure you want to uninstall?', [], 'Modules.Aismarttalk.Admin');
 
         // Check if the environment is production or development
         if ($_SERVER['HTTP_HOST'] !== 'prestashop') {
@@ -115,19 +115,18 @@ class AiSmartTalk extends Module
 
         if (Tools::getValue('clean')) {
             (new CleanProductDocuments())();
-            $output .= $this->displayConfirmation('Les produits supprimés et non actifs ont été nettoyés.');
+            $output .= $this->displayConfirmation($this->trans('Deleted and inactive products have been cleaned.', [], 'Modules.Aismarttalk.Admin'));
         }
 
         $output .= $this->handleForm();
         $output .= $this->getConcentInfoIfNotConfigured();
         $output .= $this->displayForm();
         $output .= $this->displayBackOfficeIframe();
-        $output .= $this->isConfigured() ? $this->displayButtons() : ''; // Afficher le bouton si configuré
 
         if (Tools::isSubmit('submitToggleChatbot')) {
             $chatbotEnabled = (bool) Tools::getValue('AI_SMART_TALK_ENABLED');
             Configuration::updateValue('AI_SMART_TALK_ENABLED', $chatbotEnabled);
-            $output .= $this->displayConfirmation($this->l('Settings updated.'));
+            $output .= $this->displayConfirmation($this->trans('Settings updated.', [], 'Modules.Aismarttalk.Admin'));
         }
 
         $output .= $this->displayChatbotToggleForm();
@@ -139,9 +138,9 @@ class AiSmartTalk extends Module
     {
         $form = '
             <form action="' . $_SERVER['REQUEST_URI'] . '" method="post">
-                <label for="AI_SMART_TALK_ENABLED">' . $this->l('Enable Chatbot:') . '</label>
+                <label for="AI_SMART_TALK_ENABLED">' . $this->trans('Enable Chatbot:', [], 'Modules.Aismarttalk.Admin') . '</label>
                 <input type="checkbox" name="AI_SMART_TALK_ENABLED" value="1" ' . (Configuration::get('AI_SMART_TALK_ENABLED') ? 'checked' : '') . ' />
-                <input type="submit" name="submitToggleChatbot" value="' . $this->l('Save') . '" class="button" />
+                <input type="submit" name="submitToggleChatbot" value="' . $this->trans('Save', [], 'Modules.Aismarttalk.Admin') . '" class="button" />
             </form>
         ';
 
@@ -155,34 +154,34 @@ class AiSmartTalk extends Module
             return '';
         }
 
-        // Formulaires pour la configuration du module
+        // Forms for module configuration
         $default_lang = (int) Configuration::get('PS_LANG_DEFAULT');
 
         $fields_form[0]['form'] = [
             'legend' => [
-                'title' => $this->l('Paramètres'),
+                'title' => $this->trans('Parameters', [], 'Modules.Aismarttalk.Admin'),
             ],
             'input' => [
                 [
                     'type' => 'text',
-                    'label' => $this->l('Chat Model ID'),
+                    'label' => $this->trans('Chat Model ID', [], 'Modules.Aismarttalk.Admin'),
                     'name' => 'CHAT_MODEL_ID',
                     'required' => true,
-                    'desc' => $this->l('ID du chat model'),
+                    'desc' => $this->trans('ID of the chat model', [], 'Modules.Aismarttalk.Admin'),
                     'value' => !empty(Configuration::get('CHAT_MODEL_ID')) ? Configuration::get('CHAT_MODEL_ID') : ''
                 ],
                 [
                     'type' => 'text',
-                    'label' => $this->l('Chat Model Token'),
+                    'label' => $this->trans('Chat Model Token', [], 'Modules.Aismarttalk.Admin'),
                     'name' => 'CHAT_MODEL_TOKEN',
                     'size' => 64,
                     'required' => true,
-                    'desc' => $this->l('Token du chat model'),
+                    'desc' => $this->trans('Token of the chat model', [], 'Modules.Aismarttalk.Admin'),
                     'value' => !empty(Configuration::get('CHAT_MODEL_TOKEN')) ? Configuration::get('CHAT_MODEL_TOKEN') : ''
                 ],
             ],
             'submit' => [
-                'title' => $this->l('Synchroniser'),
+                'title' => $this->trans('Synchronize', [], 'Modules.Aismarttalk.Admin'),
                 'class' => 'btn btn-default pull-right',
                 'name' => 'submit' . $this->name,
             ]
@@ -275,10 +274,13 @@ class AiSmartTalk extends Module
     private function getConcentInfoIfNotConfigured()
     {
         return !$this->isConfigured()
-            ? "<div class='alert alert-info'>
-                    Veuillez renseigner les paramètres du chat model. <br>
-                    Si vous n'avez pas encore de compte <a target='_blank' href='" . Configuration::get('AI_SMART_TALK_URL') . "'>AI SmartTalk</a>, vous pouvez en créer un <a target='_blank' href='" . Configuration::get('AI_SMART_TALK_URL') . "'>ici</a>
-               </div>"
+            ? "<div class='alert alert-info'>" .
+                $this->trans('Please enter the chat model parameters.', [], 'Modules.Aismarttalk.Admin') . "<br>" .
+                sprintf($this->trans('If you don\'t have an %s account yet, you can create one %s.', [], 'Modules.Aismarttalk.Admin'),
+                    '<a target="_blank" href="' . Configuration::get('AI_SMART_TALK_URL') . '">AI SmartTalk</a>',
+                    '<a target="_blank" href="' . Configuration::get('AI_SMART_TALK_URL') . '">' . $this->trans('here', [], 'Modules.Aismarttalk.Admin') . '</a>'
+                ) .
+              "</div>"
             : '';
     }
 
@@ -322,12 +324,12 @@ class AiSmartTalk extends Module
 
         if (true === $isSynch) {
             if ($force) {
-                $output .= $this->displayConfirmation('Tous les produits ont été synchronisés avec l\'API.');
+                $output .= $this->displayConfirmation($this->trans('All products have been synchronized with the API.', [], 'Modules.Aismarttalk.Admin'));
             } else {
-                $output .= $this->displayConfirmation('Les nouveaux produits ont été synchronisés avec l\'API.');
+                $output .= $this->displayConfirmation($this->trans('New products have been synchronized with the API.', [], 'Modules.Aismarttalk.Admin'));
             }
         } else {
-            $output .= $this->displayError('Une erreur est survenue lors de la synchronisation avec l\'API.');
+            $output .= $this->displayError($this->trans('An error occurred during synchronization with the API.', [], 'Modules.Aismarttalk.Admin'));
             $output .= Configuration::get('AI_SMART_TALK_ERROR') ? $this->displayError(Configuration::get('AI_SMART_TALK_ERROR')) : '';
         }
 

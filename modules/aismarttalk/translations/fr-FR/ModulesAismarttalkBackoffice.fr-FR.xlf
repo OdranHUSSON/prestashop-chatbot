@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+  <file original="admin1589tiszp45prex6igl" source-language="fr-FR" target-language="fr-FR" datatype="plaintext">
+    <body>
+      <trans-unit id="e1d09a60e5e7c9f3339002323c2dd856">
+        <source>AI SmartTalk Configuration</source>
+        <target>Configuration AI SmartTalk</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="454c65346b592d2a6ddcf6e6cd91d9b3">
+        <source>Synchronization</source>
+        <target>Synchronisation</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="d80260fbf4c3bfa8456aecdded82bd2b">
+        <source>Synchronize New Products</source>
+        <target>Synchroniser les nouveaux produits</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="1048bf1e562fa6b4b842fb9c4a5614cc">
+        <source>Re-Synchronize All Products</source>
+        <target>Re-synchroniser tous les produits</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="10d0de28911c5f66463b9c8783f8148a">
+        <source>Maintenance</source>
+        <target>Maintenance</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="37d12e2cfbef6e6105297374d02f3998">
+        <source>Clean</source>
+        <target>Nettoyer</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="592c9229c9b3133aeb6a91f3cb43d6a3">
+        <source>Load Another Chat Model</source>
+        <target>Charger un autre modèle de chat</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="ae943d854b9d705b53cacfefab7ffe7d">
+        <source>AI SmartTalk Backoffice</source>
+        <target>Backoffice AI SmartTalk</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="952482e1b3fed8b46ee3403789657026">
+        <source>Open AI SmartTalk Backoffice</source>
+        <target>Ouvrir le backoffice AI SmartTalk</target>
+        <note>Line: </note>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>
