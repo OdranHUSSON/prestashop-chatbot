@@ -55,6 +55,7 @@ class AiSmartTalk extends Module
             || !$this->registerHook('actionCustomerLogout')
             || !$this->registerHook('actionCartSave')
             || !$this->registerHook('actionValidateOrder')
+            || !$this->registerHook('actionCartCreate') // Add this line
             || !$this->addSynchField()
             || !$this->installHooksTable()
             || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)
@@ -75,6 +76,7 @@ class AiSmartTalk extends Module
             && $this->unregisterHook('actionCustomerLogout')
             && $this->unregisterHook('actionCartSave')
             && $this->unregisterHook('actionValidateOrder')
+            && $this->unregisterHook('actionCartCreate') // Add this line
             && $this->removeSynchField()
             && $this->uninstallHooksTable()
             && Configuration::deleteByName('AI_SMART_TALK_ENABLED');
@@ -371,8 +373,8 @@ class AiSmartTalk extends Module
     private function callAiSmartTalkApi($workflowSlug, $data)
     {
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
-        $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
-        $apiUrl = "https://api.aismarttalk.com/api/chatmodel/{$chatModelId}/{$workflowSlug}";
+        $workflowSlug = 'prestashop_' . $this->toSnakeCase($workflowSlug);
+        $apiUrl = Configuration::get('AI_SMART_TALK_URL') . "/api/chatmodel/{$chatModelId}/{$workflowSlug}";
 
         $ch = curl_init($apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -384,15 +386,21 @@ class AiSmartTalk extends Module
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $errorMsg = curl_error($ch);
         curl_close($ch);
 
         if ($httpCode >= 200 && $httpCode < 300) {
             return json_decode($response, true);
         } else {
-            // Log the error or handle it appropriately
-            PrestaShopLogger::addLog("AiSmartTalk API error: " . $response, 3);
+            $errorDetails = "URL: {$apiUrl}, HTTP Code: {$httpCode}, Error: {$errorMsg}, Response: {$response}";
+            PrestaShopLogger::addLog("AiSmartTalk API error: " . $errorDetails, 3);
             return false;
         }
+    }
+
+    private function toSnakeCase($string)
+    {
+        return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $string));
     }
 
     public function hookActionCartSave($params)
@@ -409,7 +417,7 @@ class AiSmartTalk extends Module
             'chatModelToken' => Configuration::get('CHAT_MODEL_TOKEN'),
         ];
 
-        $this->callAiSmartTalkApi('cart-updated', $data);
+        $this->callAiSmartTalkApi('cartUpdated', $data);
     }
 
     public function hookActionValidateOrder($params)
@@ -426,7 +434,24 @@ class AiSmartTalk extends Module
             'chatModelToken' => Configuration::get('CHAT_MODEL_TOKEN'),
         ];
 
-        $this->callAiSmartTalkApi('order-placed', $data);
+        $this->callAiSmartTalkApi('orderPlaced', $data);
+    }
+
+    public function hookActionCartCreate($params)
+    {
+        if (!$this->isHookEnabled('actionCartCreate')) {
+            return;
+        }
+
+        $cart = $params['cart'];
+        $data = [
+            'cart_id' => $cart->id,
+            'customer_id' => $cart->id_customer,
+            'total_products' => $cart->nbProducts(),
+            'chatModelToken' => Configuration::get('CHAT_MODEL_TOKEN'),
+        ];
+
+        $this->callAiSmartTalkApi('cartCreated', $data);
     }
 
     private function isHookEnabled($hookName)
@@ -438,8 +463,8 @@ class AiSmartTalk extends Module
     private function processHookConfigurationForm()
     {
         $hooks = [
-            'actionCartSave' => 'cart-updated',
-            'actionValidateOrder' => 'order-placed',
+            'actionCartSave' => 'prestashop_cart_updated',
+            'actionValidateOrder' => 'prestashop_order_placed',
         ];
 
         foreach ($hooks as $hookName => $workflowSlug) {
@@ -468,11 +493,11 @@ class AiSmartTalk extends Module
             'actionValidateOrder' => [
                 'label' => $this->l('Order Placed'),
                 'description' => $this->l('Trigger actions when a customer places an order'),
-            ],
+            ],            
         ];
 
         $form = '<div class="panel">
-            <h3><i class="icon icon-cogs"></i> ' . $this->l('AI SmartTalk Configuration') . '</h3>
+            <h3><i class="icon icon-cogs"></i> ' . $this->l('Smartflows') . '</h3>
             <div class="table-responsive">
                 <table class="table">
                     <thead>
@@ -480,6 +505,7 @@ class AiSmartTalk extends Module
                             <th>' . $this->l('Hook') . '</th>
                             <th>' . $this->l('Description') . '</th>
                             <th>' . $this->l('Status') . '</th>
+                            <th>' . $this->l('Test') . '</th>
                         </tr>
                     </thead>
                     <tbody>';
@@ -499,20 +525,70 @@ class AiSmartTalk extends Module
                             <a class="slide-button btn"></a>
                         </span>
                     </td>
+                    <td>
+                        <button type="button" class="btn btn-default test-hook" data-hook="' . $hookName . '">
+                            <i class="icon icon-play"></i> ' . $this->l('Test') . '
+                        </button>
+                    </td>
                 </tr>';
         }
 
         $form .= '
-                    </tbody>
-                </table>
-            </div>
-            <div class="panel-footer">
-                <button type="submit" name="submit' . $this->name . '_hooks" class="btn btn-default pull-right">
-                    <i class="process-icon-save"></i> ' . $this->l('Save') . '
-                </button>
-            </div>
-        </div>';
+                </tbody>
+            </table>
+        </div>
+        <div class="panel-footer">
+            <button type="submit" name="submit' . $this->name . '_hooks" class="btn btn-default pull-right">
+                <i class="process-icon-save"></i> ' . $this->l('Save') . '
+            </button>
+        </div>
+    </div>';
 
-        return $form;
+    return $form;
+    }
+
+    public function ajaxProcessTestHook()
+    {
+        $hookName = Tools::getValue('hook');
+        $response = ['success' => false, 'message' => ''];
+
+        if (in_array($hookName, ['actionCartSave', 'actionValidateOrder', 'actionCartCreate'])) {
+            $workflowSlug = ($hookName === 'actionCartSave') ? 'cartUpdated' : 
+                            (($hookName === 'actionValidateOrder') ? 'orderPlaced' : 'cartCreated');
+            
+            $data = [
+                'test' => true,
+                'chatModelToken' => Configuration::get('CHAT_MODEL_TOKEN'),
+                'chatModelId' => Configuration::get('CHAT_MODEL_ID'),
+                'source' => 'PRESTASHOP'
+            ];
+
+            if ($hookName === 'actionCartSave' || $hookName === 'actionCartCreate') {
+                $data['cart_id'] = 'test_cart_id';
+                $data['customer_id'] = 'test_customer_id';
+                $data['total_price'] = 99.99;
+                $data['total_products'] = 3;
+            } elseif ($hookName === 'actionValidateOrder') {
+                $data['order_id'] = 'test_order_id';
+                $data['customer_id'] = 'test_customer_id';
+                $data['total_price'] = 99.99;
+                $data['total_paid'] = 99.99;
+            }
+
+            // Call the API
+            $apiResponse = $this->callAiSmartTalkApi($workflowSlug, $data);
+
+            if ($apiResponse !== false) {
+                $response['success'] = true;
+                $response['message'] = $this->l('Webhook tested successfully.');
+            } else {
+                $response['message'] = $this->l('Error testing webhook. Please check the logs for more information.');
+            }
+        } else {
+            $response['message'] = $this->l('Invalid hook name.');
+        }
+
+        header('Content-Type: application/json');
+        die(json_encode($response));
     }
 }

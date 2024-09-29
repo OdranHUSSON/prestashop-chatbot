@@ -69,5 +69,28 @@
               </div>
           </div>
       </div>
-  </div>
+  </div>  
 </div>
+
+<script type="text/javascript">
+$(document).ready(function() {
+    $('.test-hook').on('click', function() {
+        var hookName = $(this).data('hook');
+        $.ajax({
+            url: '{$smarty.server.REQUEST_URI|escape:'javascript':'UTF-8'}&ajax=1&action=testHook&hook=' + hookName,
+            type: 'POST',
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    showSuccessMessage(response.message);
+                } else {
+                    showErrorMessage(response.message);
+                }
+            },
+            error: function() {
+                showErrorMessage('{l s='An error occurred while testing the webhook.' js=1 mod='aismarttalk'}');
+            }
+        });
+    });
+});
+</script>
