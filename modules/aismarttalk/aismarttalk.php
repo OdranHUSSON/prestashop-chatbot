@@ -15,7 +15,7 @@ class AiSmartTalk extends Module
     {
         $this->name = 'aismarttalk';
         $this->tab = 'front_office_features';
-        $this->version = '2.0.0';
+        $this->version = '2.1.0';
         $this->author = 'AI SmartTalk';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = [
@@ -41,23 +41,43 @@ class AiSmartTalk extends Module
             Configuration::updateValue('AI_SMART_TALK_URL', 'http://ai-toolkit-node:3000');
             Configuration::updateValue('AI_SMART_TALK_CDN', 'http://localhost:3001');
         }
+
+        $this->addSynchField();
+        $this->registerAiSmartTalkHooks();
     }
 
     public function install()
     {
-        if (
-            !parent::install()
-            || !$this->registerHook('displayFooter')
-            || !$this->registerHook('actionProductUpdate')
-            || !$this->registerHook('actionProductCreate')
-            || !$this->registerHook('actionProductDelete')
-            || !$this->registerHook('actionAuthentication')
-            || !$this->registerHook('actionCustomerLogout')
-            || !$this->addSynchField()
-            || !Configuration::updateValue('AI_SMART_TALK_ENABLED', false)
-        ) { // Add default configuration for enabling/disabling the chatbot
+        if (!parent::install()) {
             return false;
         }
+
+        if (!Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function registerAiSmartTalkHooks()
+    {
+        $hooks = [
+            'displayFooter',
+            'actionProductUpdate',
+            'actionProductCreate',
+            'actionProductDelete',
+            'actionAuthentication',
+            'actionCustomerLogout'
+        ];
+
+        foreach ($hooks as $hook) {
+            if (!$this->isRegisteredInHook($hook)) {
+                if (!$this->registerHook($hook)) {
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 
@@ -87,14 +107,40 @@ class AiSmartTalk extends Module
 
     private function addSynchField()
     {
-            Db::getInstance()->execute('ALTER TABLE ' . _DB_PREFIX_ . 'product ADD COLUMN aismarttalk_synch TINYINT(1) NOT NULL DEFAULT 0');
+        $db = Db::getInstance();
+        $tableName = _DB_PREFIX_ . 'product';
+
+        // Check if aismarttalk_synch column exists before adding
+        $result = $db->executeS("SHOW COLUMNS FROM `$tableName` LIKE 'aismarttalk_synch'");
+        if (empty($result)) {
+            $db->execute("ALTER TABLE `$tableName` ADD COLUMN `aismarttalk_synch` TINYINT(1) NOT NULL DEFAULT 0");
+        }
+
+        // Check if aismarttalk_last_source column exists before adding
+        $result = $db->executeS("SHOW COLUMNS FROM `$tableName` LIKE 'aismarttalk_last_source'");
+        if (empty($result)) {
+            $db->execute("ALTER TABLE `$tableName` ADD COLUMN `aismarttalk_last_source` DATETIME NULL");
+        }
         
         return true;
     }
     
     private function removeSynchField()
     {
-            Db::getInstance()->execute('ALTER TABLE ' . _DB_PREFIX_ . 'product DROP COLUMN aismarttalk_synch');
+        $db = Db::getInstance();
+        $tableName = _DB_PREFIX_ . 'product';
+
+        // Check if aismarttalk_synch column exists before dropping
+        $result = $db->executeS("SHOW COLUMNS FROM `$tableName` LIKE 'aismarttalk_synch'");
+        if (!empty($result)) {
+            $db->execute("ALTER TABLE `$tableName` DROP COLUMN `aismarttalk_synch`");
+        }
+
+        // Check if aismarttalk_last_source column exists before dropping
+        $result = $db->executeS("SHOW COLUMNS FROM `$tableName` LIKE 'aismarttalk_last_source'");
+        if (!empty($result)) {
+            $db->execute("ALTER TABLE `$tableName` DROP COLUMN `aismarttalk_last_source`");
+        }
         
         return true;
     }
@@ -222,9 +268,19 @@ class AiSmartTalk extends Module
 
     public function hookActionProductUpdate($params)
     {
-        $idProduct = $params['id_product'];
-        $api = new SynchProductsToAiSmartTalk();
-        $api(['productIds' => [(string) $idProduct], "forceSync" => true]);
+        $lastTimeWeSynch = Db::getInstance()->getValue('SELECT aismarttalk_last_source FROM ' . _DB_PREFIX_ . 'product WHERE id_product = ' . (int) $params['id_product']);
+        
+        $date = new DateTime();
+        $date->modify('-3 seconds')->format('Y-m-d H:i:s');
+        $lastTimeWeSynch = (new DateTime($lastTimeWeSynch));
+        
+        if (empty($lastTimeWeSynch) || ($date > $lastTimeWeSynch)) {
+            $idProduct = $params['id_product'];
+            $api = new SynchProductsToAiSmartTalk();
+            $api(['productIds' => [(string) $idProduct], "forceSync" => true]);
+            $now = new DateTime();
+            Db::getInstance()->execute('UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_last_source = "' . $now->format('Y-m-d H:i:s') . '" WHERE id_product = ' . (int) $params['id_product']);
+        }
     }
 
     public function hookActionProductCreate($params)
