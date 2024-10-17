@@ -15,7 +15,6 @@ use Tools;
 use Context;
 use Product;
 
-
 class SynchProductsToAiSmartTalk extends Module
 {
     private $forceSync = false;
@@ -54,6 +53,7 @@ class SynchProductsToAiSmartTalk extends Module
                 'id' => $product['id_product'],
                 'title' => $product['name'],
                 'description' => strip_tags($product['description']),
+                'short_description' => strip_tags($product['description_short']),
                 'reference' => $product['reference'],
                 'price' => $psProduct->getPrice(),
                 'url' => $productUrl,
