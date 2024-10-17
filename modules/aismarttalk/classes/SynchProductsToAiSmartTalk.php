@@ -132,7 +132,7 @@ class SynchProductsToAiSmartTalk extends Module
 
     private function getProductsToSynchronize()
     {
-        $sql = "SELECT p.id_product, pl.name, pl.description, 
+        $sql = "SELECT p.id_product, pl.name, pl.description, pl.description_short,
                    p.reference, p.price, cl.link_rewrite, i.id_image
             FROM " . _DB_PREFIX_ . "product p 
             JOIN " . _DB_PREFIX_ . "product_lang pl ON p.id_product = pl.id_product 
