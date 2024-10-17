@@ -8,6 +8,10 @@ require_once dirname(__FILE__) . '/vendor/autoload.php';
 use PrestaShop\AiSmartTalk\CleanProductDocuments;
 use PrestaShop\AiSmartTalk\SynchProductsToAiSmartTalk;
 use PrestaShop\AiSmartTalk\OAuthTokenHandler;
+use PrestaShop\PrestaShop\Core\Grid\Action\Row\Type\SubmitRowAction;
+use PrestaShop\PrestaShop\Core\Grid\Action\Type\LinkGridAction;
+use PrestaShop\PrestaShop\Core\Grid\Action\Type\SimpleGridAction;
+
 
 class AiSmartTalk extends Module
 {
@@ -67,18 +71,41 @@ class AiSmartTalk extends Module
             'actionProductCreate',
             'actionProductDelete',
             'actionAuthentication',
-            'actionCustomerLogout'
+            'actionCustomerLogout',
+            'displayAdminProductsExtra'
         ];
 
         foreach ($hooks as $hook) {
             if (!$this->isRegisteredInHook($hook)) {
                 if (!$this->registerHook($hook)) {
+                    die;
                     return false;
                 }
             }
         }
 
         return true;
+    }
+
+    public function hookDisplayAdminProductsExtra($params)
+    {
+        $productId = $params['id_product'];
+        
+        $improveDescriptionUrl = $this->context->link->getAdminLink('AdminAiSmartTalk', true, [], ['action' => 'improveDescription', 'id_product' => $productId]);
+        
+        $output = '<div class="panel">
+            <div class="panel-heading">
+                ' . $this->l('AI SmartTalk') . '
+            </div>
+            <div class="panel-body">
+                <p>' . $this->l('Improve product description using AI') . '</p>
+                <a href="' . $improveDescriptionUrl . '" class="btn btn-primary">
+                    ' . $this->l('Improve Description') . '
+                </a>
+            </div>
+        </div>';
+
+        return $output;
     }
 
     public function uninstall()
