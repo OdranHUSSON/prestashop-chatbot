@@ -22,9 +22,9 @@ if (!defined('_PS_VERSION_')) {
 
 require_once dirname(__FILE__) . '/../vendor/autoload.php';
 
+use Configuration;
+use Db;
 use PrestaShop\PrestaShop\Adapter\Module\Module;
-use PrestaShop\PrestaShop\Core\Configuration\Configuration;
-use PrestaShop\PrestaShop\Core\Foundation\Database\Db;
 
 class CleanProductDocuments extends Module
 {

@@ -22,8 +22,8 @@ if (!defined('_PS_VERSION_')) {
 
 require_once dirname(__FILE__) . '/../vendor/autoload.php';
 
+use Configuration;
 use PrestaShop\PrestaShop\Adapter\Module\Module;
-use PrestaShop\PrestaShop\Core\Configuration\DataConfigurationInterface as Configuration;
 
 class OAuthTokenHandler extends Module
 {

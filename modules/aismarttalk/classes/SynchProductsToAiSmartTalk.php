@@ -22,12 +22,12 @@ if (!defined('_PS_VERSION_')) {
 
 require_once dirname(__FILE__) . '/../vendor/autoload.php';
 
-use PrestaShop\PrestaShop\Adapter\Entity\Product;
+use Configuration;
+use Context;
+use Db;
 use PrestaShop\PrestaShop\Adapter\Module\Module;
-use PrestaShop\PrestaShop\Adapter\Shop\Context;
-use PrestaShop\PrestaShop\Adapter\Tools;
-use PrestaShop\PrestaShop\Core\Configuration\Configuration;
-use PrestaShop\PrestaShop\Core\Foundation\Database\Db;
+use Product;
+use Tools;
 
 class SynchProductsToAiSmartTalk extends Module
 {
