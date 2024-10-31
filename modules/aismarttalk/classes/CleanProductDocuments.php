@@ -22,8 +22,6 @@ if (!defined('_PS_VERSION_')) {
 
 require_once dirname(__FILE__) . '/../vendor/autoload.php';
 
-use Configuration;
-use Db;
 use PrestaShop\PrestaShop\Adapter\Module\Module;
 
 class CleanProductDocuments extends Module
@@ -44,7 +42,7 @@ class CleanProductDocuments extends Module
     private function fetchAllProductIds()
     {
         $sql = 'SELECT id_product FROM ' . _DB_PREFIX_ . 'product WHERE active = 1';
-        $products = Db::getInstance()->executeS($sql);
+        $products = \Db::getInstance()->executeS($sql);
 
         return array_map(function ($product) {
             return (string) $product['id_product'];
@@ -54,9 +52,9 @@ class CleanProductDocuments extends Module
     private function cleanProducts()
     {
         $productIds = $this->productIds ? $this->productIds : $this->fetchAllProductIds();
-        $aiSmartTalkUrl = Configuration::get('AI_SMART_TALK_URL');
-        $chatModelId = Configuration::get('CHAT_MODEL_ID');
-        $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
+        $aiSmartTalkUrl = \Configuration::get('AI_SMART_TALK_URL');
+        $chatModelId = \Configuration::get('CHAT_MODEL_ID');
+        $chatModelToken = \Configuration::get('CHAT_MODEL_TOKEN');
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $aiSmartTalkUrl . '/api/document/clean');
         curl_setopt($ch, CURLOPT_POST, 1);
@@ -75,13 +73,13 @@ class CleanProductDocuments extends Module
 
         $result = curl_exec($ch);
         if ($result === false) {
-            Configuration::updateValue('CLEAN_PRODUCT_DOCUMENTS_ERROR', curl_error($ch));
+            \Configuration::updateValue('CLEAN_PRODUCT_DOCUMENTS_ERROR', curl_error($ch));
         } else {
             $response = json_decode($result, true);
             if (isset($response['status']) && $response['status'] == 'error') {
-                Configuration::updateValue('CLEAN_PRODUCT_DOCUMENTS_ERROR', $response['message']);
+                \Configuration::updateValue('CLEAN_PRODUCT_DOCUMENTS_ERROR', $response['message']);
             } else {
-                Configuration::deleteByName('CLEAN_PRODUCT_DOCUMENTS_ERROR');
+                \Configuration::deleteByName('CLEAN_PRODUCT_DOCUMENTS_ERROR');
             }
         }
 

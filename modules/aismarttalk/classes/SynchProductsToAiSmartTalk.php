@@ -22,12 +22,7 @@ if (!defined('_PS_VERSION_')) {
 
 require_once dirname(__FILE__) . '/../vendor/autoload.php';
 
-use Configuration;
-use Context;
-use Db;
 use PrestaShop\PrestaShop\Adapter\Module\Module;
-use Product;
-use Tools;
 
 class SynchProductsToAiSmartTalk extends Module
 {
@@ -50,17 +45,17 @@ class SynchProductsToAiSmartTalk extends Module
     {
         $products = $this->getProductsToSynchronize();
 
-        $baseLink = Tools::getHttpHost(true) . __PS_BASE_URI__;
+        $baseLink = \Tools::getHttpHost(true) . __PS_BASE_URI__;
 
         $documentDatas = [];
         $synchronizedProductIds = [];
         foreach ($products as $product) {
-            $psProduct = new Product($product['id_product']);
+            $psProduct = new \Product($product['id_product']);
             $productUrl = $baseLink . $product['link_rewrite'] . '/' . $product['id_product'] . '-' . $product['link_rewrite'] . '.html';
 
             if (!empty($product['id_image'])) {
-                $defaultLangId = Configuration::get('PS_LANG_DEFAULT');
-                $imageUrl = Context::getContext()->link->getImageLink($psProduct->link_rewrite[$defaultLangId], $product['id_image']);
+                $defaultLangId = \Configuration::get('PS_LANG_DEFAULT');
+                $imageUrl = \Context::getContext()->link->getImageLink($psProduct->link_rewrite[$defaultLangId], $product['id_image']);
             }
 
             $documentDatas[] = [
@@ -108,14 +103,14 @@ class SynchProductsToAiSmartTalk extends Module
     {
         $ids = implode(',', array_map('intval', $productIds));
         $sql = 'UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_synch = 1 WHERE id_product IN (' . $ids . ')';
-        return Db::getInstance()->execute($sql);
+        return \Db::getInstance()->execute($sql);
     }
 
     private function postToApi($documentDatas)
     {
-        $aiSmartTalkUrl = Configuration::get('AI_SMART_TALK_URL');
-        $chatModelId = Configuration::get('CHAT_MODEL_ID');
-        $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
+        $aiSmartTalkUrl = \Configuration::get('AI_SMART_TALK_URL');
+        $chatModelId = \Configuration::get('CHAT_MODEL_ID');
+        $chatModelToken = \Configuration::get('CHAT_MODEL_TOKEN');
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $aiSmartTalkUrl . '/api/document/source');
@@ -131,16 +126,16 @@ class SynchProductsToAiSmartTalk extends Module
 
         $result = curl_exec($ch);
         if ($result === false) {
-            Configuration::updateValue('AI_SMART_TALK_ERROR', curl_error($ch));
+            \Configuration::updateValue('AI_SMART_TALK_ERROR', curl_error($ch));
         } else {
-            Configuration::deleteByName('AI_SMART_TALK_ERROR');
+            \Configuration::deleteByName('AI_SMART_TALK_ERROR');
         }
 
         curl_close($ch);
 
         $response = json_decode($result, true);
         if (isset($response['status']) && $response['status'] == 'error') {
-            Configuration::updateValue('AI_SMART_TALK_ERROR', $response['message']);
+            \Configuration::updateValue('AI_SMART_TALK_ERROR', $response['message']);
             return false;
         }
 
@@ -159,7 +154,7 @@ class SynchProductsToAiSmartTalk extends Module
 
         $sql .= $this->forceSync === false ? ' AND p.aismarttalk_synch = 0' : '';
         $sql .= $this->productIds ? ' AND p.id_product IN (' . implode(',', $this->productIds) . ')' : '';
-        $products = Db::getInstance()->executeS($sql);
+        $products = \Db::getInstance()->executeS($sql);
 
         return $products;
     }
