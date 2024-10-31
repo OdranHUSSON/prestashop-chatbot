@@ -1,4 +1,18 @@
 <?php
+/**
+ * Copyright (c) 2024 AI SmartTalk
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License (AFL 3.0)
+ * that is bundled with this package in the file LICENSE.txt.
+ * It is also available through the world-wide-web at this URL:
+ * http://opensource.org/licenses/afl-3.0.php
+ *
+ * @author    AI SmartTalk <contact@aismarttalk.tech>
+ * @copyright 2024 AI SmartTalk
+ * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ */
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -6,8 +20,8 @@ if (!defined('_PS_VERSION_')) {
 require_once dirname(__FILE__) . '/vendor/autoload.php';
 
 use PrestaShop\AiSmartTalk\CleanProductDocuments;
-use PrestaShop\AiSmartTalk\SynchProductsToAiSmartTalk;
 use PrestaShop\AiSmartTalk\OAuthTokenHandler;
+use PrestaShop\AiSmartTalk\SynchProductsToAiSmartTalk;
 
 class AiSmartTalk extends Module
 {
@@ -15,7 +29,7 @@ class AiSmartTalk extends Module
     {
         $this->name = 'aismarttalk';
         $this->tab = 'front_office_features';
-        $this->version = '2.1.5';
+        $this->version = '2.2.1';
         $this->author = 'AI SmartTalk';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = [
@@ -67,7 +81,7 @@ class AiSmartTalk extends Module
             'actionProductCreate',
             'actionProductDelete',
             'actionAuthentication',
-            'actionCustomerLogout'
+            'actionCustomerLogout',
         ];
 
         foreach ($hooks as $hook) {
@@ -121,10 +135,10 @@ class AiSmartTalk extends Module
         if (empty($result)) {
             $db->execute("ALTER TABLE `$tableName` ADD COLUMN `aismarttalk_last_source` DATETIME NULL");
         }
-        
+
         return true;
     }
-    
+
     private function removeSynchField()
     {
         $db = Db::getInstance();
@@ -141,10 +155,9 @@ class AiSmartTalk extends Module
         if (!empty($result)) {
             $db->execute("ALTER TABLE `$tableName` DROP COLUMN `aismarttalk_last_source`");
         }
-        
+
         return true;
     }
-    
 
     public function getContent()
     {
@@ -182,15 +195,14 @@ class AiSmartTalk extends Module
 
     protected function displayChatbotToggleForm()
     {
-        $form = '
-            <form action="' . $_SERVER['REQUEST_URI'] . '" method="post">
-                <label for="AI_SMART_TALK_ENABLED">' . $this->trans('Enable Chatbot:', [], 'Modules.Aismarttalk.Admin') . '</label>
-                <input type="checkbox" name="AI_SMART_TALK_ENABLED" value="1" ' . (Configuration::get('AI_SMART_TALK_ENABLED') ? 'checked' : '') . ' />
-                <input type="submit" name="submitToggleChatbot" value="' . $this->trans('Save', [], 'Modules.Aismarttalk.Admin') . '" class="button" />
-            </form>
-        ';
+        $this->context->smarty->assign([
+            'formAction' => $_SERVER['REQUEST_URI'],
+            'chatbotEnabled' => Configuration::get('AI_SMART_TALK_ENABLED'),
+            'saveButtonText' => $this->trans('Save', [], 'Modules.Aismarttalk.Admin'),
+            'enableChatbotText' => $this->trans('Enable Chatbot:', [], 'Modules.Aismarttalk.Admin'),
+        ]);
 
-        return $form;
+        return $this->display(__FILE__, 'views/templates/admin/chatbot-toggle.tpl');
     }
 
     public function displayForm()
@@ -214,7 +226,7 @@ class AiSmartTalk extends Module
                     'name' => 'CHAT_MODEL_ID',
                     'required' => true,
                     'desc' => $this->trans('ID of the chat model', [], 'Modules.Aismarttalk.Admin'),
-                    'value' => !empty(Configuration::get('CHAT_MODEL_ID')) ? Configuration::get('CHAT_MODEL_ID') : ''
+                    'value' => !empty(Configuration::get('CHAT_MODEL_ID')) ? Configuration::get('CHAT_MODEL_ID') : '',
                 ],
                 [
                     'type' => 'text',
@@ -223,14 +235,14 @@ class AiSmartTalk extends Module
                     'size' => 64,
                     'required' => true,
                     'desc' => $this->trans('Token of the chat model', [], 'Modules.Aismarttalk.Admin'),
-                    'value' => !empty(Configuration::get('CHAT_MODEL_TOKEN')) ? Configuration::get('CHAT_MODEL_TOKEN') : ''
+                    'value' => !empty(Configuration::get('CHAT_MODEL_TOKEN')) ? Configuration::get('CHAT_MODEL_TOKEN') : '',
                 ],
             ],
             'submit' => [
                 'title' => $this->trans('Synchronize', [], 'Modules.Aismarttalk.Admin'),
                 'class' => 'btn btn-default pull-right',
                 'name' => 'submit' . $this->name,
-            ]
+            ],
         ];
 
         $helper = new HelperForm();
@@ -255,13 +267,13 @@ class AiSmartTalk extends Module
         $chatModelId = Configuration::get('CHAT_MODEL_ID');
         $lang = $this->context->language->iso_code;
 
-        $this->context->smarty->assign(array(
+        $this->context->smarty->assign([
             'chatModelId' => $chatModelId,
             'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
             'lang' => $lang,
             'source' => 'PRESTASHOP',
             'userToken' => $_COOKIE['ai_smarttalk_oauth_token'],
-        ));
+        ]);
 
         return $this->display(__FILE__, 'views/templates/hook/footer.tpl');
     }
@@ -269,15 +281,15 @@ class AiSmartTalk extends Module
     public function hookActionProductUpdate($params)
     {
         $lastTimeWeSynch = Db::getInstance()->getValue('SELECT aismarttalk_last_source FROM ' . _DB_PREFIX_ . 'product WHERE id_product = ' . (int) $params['id_product']);
-        
+
         $date = new DateTime();
         $date->modify('-3 seconds')->format('Y-m-d H:i:s');
         $lastTimeWeSynch = (new DateTime($lastTimeWeSynch));
-        
+
         if (empty($lastTimeWeSynch) || ($date > $lastTimeWeSynch)) {
             $idProduct = $params['id_product'];
             $api = new SynchProductsToAiSmartTalk();
-            $api(['productIds' => [(string) $idProduct], "forceSync" => true]);
+            $api(['productIds' => [(string) $idProduct], 'forceSync' => true]);
             $now = new DateTime();
             Db::getInstance()->execute('UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_last_source = "' . $now->format('Y-m-d H:i:s') . '" WHERE id_product = ' . (int) $params['id_product']);
         }
@@ -287,7 +299,7 @@ class AiSmartTalk extends Module
     {
         $idProduct = $params['id_product'];
         $api = new SynchProductsToAiSmartTalk();
-        $api(['productIds' => [(string) $idProduct], "forceSync" => true]);
+        $api(['productIds' => [(string) $idProduct], 'forceSync' => true]);
     }
 
     public function hookActionProductDelete($params)
@@ -313,14 +325,14 @@ class AiSmartTalk extends Module
         $chatModelToken = Configuration::get('CHAT_MODEL_TOKEN');
         $lang = $this->context->language->iso_code;
 
-        $backofficeUrl = $this->getApiHost() . "/admin/chatModel/" . $chatModelId;
+        $backofficeUrl = $this->getApiHost() . '/admin/chatModel/' . $chatModelId;
 
-        $this->context->smarty->assign(array(
+        $this->context->smarty->assign([
             'CDN' => Configuration::get('AI_SMART_TALK_CDN'),
             'backofficeUrl' => $backofficeUrl,
             'chatModelId' => $chatModelId,
             'lang' => $lang,
-        ));
+        ]);
 
         if ($this->isConfigured()) {
             return $this->display(__FILE__, 'views/templates/admin/backoffice.tpl');
@@ -329,15 +341,17 @@ class AiSmartTalk extends Module
 
     private function getConcentInfoIfNotConfigured()
     {
-        return !$this->isConfigured()
-            ? "<div class='alert alert-info'>" .
-                $this->trans('Please enter the chat model parameters.', [], 'Modules.Aismarttalk.Admin') . "<br>" .
-                sprintf($this->trans('If you don\'t have an %s account yet, you can create one %s.', [], 'Modules.Aismarttalk.Admin'),
-                    '<a target="_blank" href="' . Configuration::get('AI_SMART_TALK_URL') . '">AI SmartTalk</a>',
-                    '<a target="_blank" href="' . Configuration::get('AI_SMART_TALK_URL') . '">' . $this->trans('here', [], 'Modules.Aismarttalk.Admin') . '</a>'
-                ) .
-              "</div>"
-            : '';
+        if (!$this->isConfigured()) {
+            $this->context->smarty->assign([
+                'aiSmartTalkUrl' => Configuration::get('AI_SMART_TALK_URL'),
+                'enterParamsText' => $this->trans('Please enter the chat model parameters.', [], 'Modules.Aismarttalk.Admin'),
+                'accountText' => $this->trans('If you don\'t have an %s account yet, you can create one %s.', [], 'Modules.Aismarttalk.Admin'),
+                'hereText' => $this->trans('here', [], 'Modules.Aismarttalk.Admin'),
+            ]);
+
+            return $this->display(__FILE__, 'views/templates/admin/configuration-info.tpl');
+        }
+        return '';
     }
 
     private function isConfigured()
@@ -373,7 +387,7 @@ class AiSmartTalk extends Module
         return true;
     }
 
-    private function sync(bool $force = false, $output = "")
+    private function sync(bool $force = false, $output = '')
     {
         $api = new SynchProductsToAiSmartTalk();
         $isSynch = $api(['forceSync' => $force]);
