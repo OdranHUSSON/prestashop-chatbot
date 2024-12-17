@@ -42,7 +42,7 @@ class OAuthTokenHandler extends Module
             if (isset($responseData['token'])) {
                 // Set token in cookie
                 $loginCookieLifetime = time() + (int) \Configuration::get('PS_COOKIE_LIFETIME_BO') * 3600;
-                setcookie('ai_smarttalk_oauth_token', $responseData['token'], $loginCookieLifetime, '/', null, false, true);
+                setcookie('ai_smarttalk_oauth_token', $responseData['token'], $loginCookieLifetime, '/', '', false, true);
                 $_COOKIE['ai_smarttalk_oauth_token'] = $responseData['token']; // Update $_COOKIE superglobal
             } else {
                 error_log('No token found in response.');
