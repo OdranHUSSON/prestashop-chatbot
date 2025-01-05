@@ -19,7 +19,42 @@
       <div class="col-md-6">
           <div class="panel">
               <div class="panel-heading">
-                  {l s='Synchronization' mod='aismarttalk'}
+                  <h4>{l s='Customer Synchronization' mod='aismarttalk'}</h4>
+              </div>
+              <div class="panel-body">
+                  <form method="post" class="form-horizontal">
+                      <div class="form-group">
+                          <label class="control-label col-lg-4">
+                              {l s='Auto-sync customers with AI SmartTalk' mod='aismarttalk'}
+                          </label>
+                          <div class="col-lg-8">
+                              <div class="switch prestashop-switch">
+                                  <input type="radio" name="AI_SMART_TALK_CUSTOMER_SYNC" id="AI_SMART_TALK_CUSTOMER_SYNC_on" value="1" {if $customerSyncEnabled}checked="checked"{/if}>
+                                  <label for="AI_SMART_TALK_CUSTOMER_SYNC_on">{l s='Yes' mod='aismarttalk'}</label>
+                                  <input type="radio" name="AI_SMART_TALK_CUSTOMER_SYNC" id="AI_SMART_TALK_CUSTOMER_SYNC_off" value="0" {if !$customerSyncEnabled}checked="checked"{/if}>
+                                  <label for="AI_SMART_TALK_CUSTOMER_SYNC_off">{l s='No' mod='aismarttalk'}</label>
+                                  <a class="slide-button btn"></a>
+                              </div>
+                          </div>
+                      </div>
+                      <div class="form-group">
+                          <div class="col-lg-8 col-lg-offset-4">
+                              <button type="submit" name="submitCustomerSync" class="btn btn-success">
+                                  <i class="icon icon-save"></i> {l s='Save Settings' mod='aismarttalk'}
+                              </button>
+                              <a href="{$smarty.server.REQUEST_URI|escape:'html':'UTF-8'}&amp;exportCustomers=1" class="btn btn-info">
+                                  <i class="icon icon-upload"></i> {l s='Export Customers' mod='aismarttalk'}
+                              </a>
+                          </div>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      </div>
+      <div class="col-md-6">
+          <div class="panel">
+              <div class="panel-heading">
+                  {l s='Product Synchronization' mod='aismarttalk'}
               </div>
               <div class="panel-body">
                   <a href="{$smarty.server.REQUEST_URI|escape:'html':'UTF-8'}&amp;forceSync=false" class="btn btn-default">
@@ -27,21 +62,6 @@
                   </a>
                   <a href="{$smarty.server.REQUEST_URI|escape:'html':'UTF-8'}&amp;forceSync=true" class="btn btn-default">
                       <i class="icon icon-refresh"></i> {l s='Re-Synchronize All Products' mod='aismarttalk'}
-                  </a>
-              </div>
-          </div>
-      </div>
-      <div class="col-md-6">
-          <div class="panel">
-              <div class="panel-heading">
-                  {l s='Maintenance' mod='aismarttalk'}
-              </div>
-              <div class="panel-body">
-                  <a href="{$smarty.server.REQUEST_URI|escape:'html':'UTF-8'}&amp;clean=true" class="btn btn-default">
-                      <i class="icon icon-eraser"></i> {l s='Clean' mod='aismarttalk'}
-                  </a>
-                  <a href="{$smarty.server.REQUEST_URI|escape:'html':'UTF-8'}&amp;resetConfiguration={$module_name|escape:'html':'UTF-8'}" class="btn btn-default">
-                      <i class="icon icon-cog"></i> {l s='Load Another Chat Model' mod='aismarttalk'}
                   </a>
               </div>
           </div>
@@ -69,6 +89,32 @@
       lang: "{$lang|escape:'javascript':'UTF-8'}"
     };
 </script>
-<iframe src="{$iframeUrl|escape:'html':'UTF-8'}" width="100%" height="800px"></iframe>
 <script type="text/javascript" src="{$CDN|escape:'html':'UTF-8'}/cdn?chatModelId={$chatModelId|escape:'html':'UTF-8'}" async></script>
 <div id="chatbot">Loading ...</div>
+
+<script type="text/javascript">
+$(document).ready(function() {
+    $('#export-customers').click(function() {
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+        
+        $.ajax({
+            url: '{$currentIndex|escape:'javascript':'UTF-8'}&token={$token|escape:'javascript':'UTF-8'}&action=exportCustomers',
+            method: 'POST',
+            success: function(response) {
+                if (response.success) {
+                    showSuccessMessage('{l s='Customers exported successfully!' mod='aismarttalk'}');
+                } else {
+                    showErrorMessage('{l s='Export failed. Please check the logs.' mod='aismarttalk'}');
+                }
+            },
+            error: function() {
+                showErrorMessage('{l s='An error occurred during export.' mod='aismarttalk'}');
+            },
+            complete: function() {
+                $btn.prop('disabled', false);
+            }
+        });
+    });
+});
+</script>

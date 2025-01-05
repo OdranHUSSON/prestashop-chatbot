@@ -22,6 +22,7 @@ require_once dirname(__FILE__) . '/vendor/autoload.php';
 use PrestaShop\AiSmartTalk\CleanProductDocuments;
 use PrestaShop\AiSmartTalk\OAuthTokenHandler;
 use PrestaShop\AiSmartTalk\SynchProductsToAiSmartTalk;
+use PrestaShop\AiSmartTalk\CustomerSync;
 
 class AiSmartTalk extends Module
 {
@@ -82,6 +83,9 @@ class AiSmartTalk extends Module
             'actionProductDelete',
             'actionAuthentication',
             'actionCustomerLogout',
+            'actionCustomerAccountAdd',
+            'actionCustomerAccountUpdate',
+            'actionCustomerDelete',
         ];
 
         foreach ($hooks as $hook) {
@@ -172,15 +176,26 @@ class AiSmartTalk extends Module
             $output .= $this->sync($force, $output);
         }
 
+        if (Tools::getValue('exportCustomers')) {
+            $sync = new CustomerSync();
+            $result = $sync->exportAllCustomers();
+            
+            if ($result['success']) {
+                $output .= $this->displayConfirmation($this->l('Customers exported successfully!'));
+            } else {
+                $output .= $this->displayError($this->l('Failed to export customers. Please check the logs.'));
+                if (!empty($result['errors'])) {
+                    foreach ($result['errors'] as $error) {
+                        $output .= $this->displayError($error);
+                    }
+                }
+            }
+        }
+
         if (Tools::getValue('clean')) {
             (new CleanProductDocuments())();
             $output .= $this->displayConfirmation($this->trans('Deleted and inactive products have been cleaned.', [], 'Modules.Aismarttalk.Admin'));
         }
-
-        $output .= $this->handleForm();
-        $output .= $this->getConcentInfoIfNotConfigured();
-        $output .= $this->displayForm();
-        $output .= $this->displayBackOfficeIframe();
 
         if (Tools::isSubmit('submitToggleChatbot')) {
             $chatbotEnabled = (bool) Tools::getValue('AI_SMART_TALK_ENABLED');
@@ -188,7 +203,31 @@ class AiSmartTalk extends Module
             $output .= $this->displayConfirmation($this->trans('Settings updated.', [], 'Modules.Aismarttalk.Admin'));
         }
 
-        $output .= $this->displayChatbotToggleForm();
+        if (Tools::isSubmit('submitCustomerSync')) {
+            $syncEnabled = (bool) Tools::getValue('AI_SMART_TALK_CUSTOMER_SYNC');
+            Configuration::updateValue('AI_SMART_TALK_CUSTOMER_SYNC', $syncEnabled);
+            $output .= $this->displayConfirmation($this->l('Customer sync settings updated.'));
+        }
+
+        $this->context->smarty->assign([
+            'customerSyncEnabled' => Configuration::get('AI_SMART_TALK_CUSTOMER_SYNC'),
+            'currentIndex' => $this->context->link->getAdminLink('AdminAiSmartTalk'),
+            'token' => Tools::getAdminTokenLite('AdminAiSmartTalk'),
+        ]);
+
+        $output .= $this->display(__FILE__, 'views/templates/admin/customer_sync.tpl');
+
+        $output .= $this->handleForm();
+        $output .= $this->getConcentInfoIfNotConfigured();
+        
+        // Always show the configuration form
+        $output .= $this->displayForm();
+        
+        // Show backoffice and chatbot toggle if configured
+        if ($this->isConfigured()) {
+            $output .= $this->displayBackOfficeIframe();
+            $output .= $this->displayChatbotToggleForm();
+        }
 
         return $output;
     }
@@ -199,7 +238,7 @@ class AiSmartTalk extends Module
             'formAction' => $_SERVER['REQUEST_URI'],
             'chatbotEnabled' => Configuration::get('AI_SMART_TALK_ENABLED'),
             'saveButtonText' => $this->trans('Save', [], 'Modules.Aismarttalk.Admin'),
-            'enableChatbotText' => $this->trans('Enable Chatbot:', [], 'Modules.Aismarttalk.Admin'),
+            'enableChatbotText' => $this->trans('Enable Chatbot', [], 'Modules.Aismarttalk.Admin'),
         ]);
 
         return $this->display(__FILE__, 'views/templates/admin/chatbot-toggle.tpl');
@@ -207,12 +246,6 @@ class AiSmartTalk extends Module
 
     public function displayForm()
     {
-        // If already configured, no need to display the form
-        if ($this->isConfigured() && empty(Configuration::get('AI_SMART_TALK_ERROR'))) {
-            return '';
-        }
-
-        // Forms for module configuration
         $default_lang = (int) Configuration::get('PS_LANG_DEFAULT');
 
         $fields_form[0]['form'] = [
@@ -226,7 +259,7 @@ class AiSmartTalk extends Module
                     'name' => 'CHAT_MODEL_ID',
                     'required' => true,
                     'desc' => $this->trans('ID of the chat model', [], 'Modules.Aismarttalk.Admin'),
-                    'value' => !empty(Configuration::get('CHAT_MODEL_ID')) ? Configuration::get('CHAT_MODEL_ID') : '',
+                    'value' => Configuration::get('CHAT_MODEL_ID'),
                 ],
                 [
                     'type' => 'text',
@@ -235,11 +268,11 @@ class AiSmartTalk extends Module
                     'size' => 64,
                     'required' => true,
                     'desc' => $this->trans('Token of the chat model', [], 'Modules.Aismarttalk.Admin'),
-                    'value' => !empty(Configuration::get('CHAT_MODEL_TOKEN')) ? Configuration::get('CHAT_MODEL_TOKEN') : '',
+                    'value' => Configuration::get('CHAT_MODEL_TOKEN'),
                 ],
             ],
             'submit' => [
-                'title' => $this->trans('Synchronize', [], 'Modules.Aismarttalk.Admin'),
+                'title' => $this->trans('Save', [], 'Modules.Aismarttalk.Admin'),
                 'class' => 'btn btn-default pull-right',
                 'name' => 'submit' . $this->name,
             ],
@@ -252,7 +285,6 @@ class AiSmartTalk extends Module
         $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
         $helper->title = $this->displayName;
         $helper->submit_action = 'submit' . $this->name;
-        $helper->fields_value['AI_SMART_TALK_URL'] = Configuration::get('AI_SMART_TALK_URL');
         $helper->fields_value['CHAT_MODEL_ID'] = Configuration::get('CHAT_MODEL_ID');
         $helper->fields_value['CHAT_MODEL_TOKEN'] = Configuration::get('CHAT_MODEL_TOKEN');
 
@@ -404,5 +436,33 @@ class AiSmartTalk extends Module
         }
 
         return $output;
+    }
+
+    public function hookActionCustomerAccountAdd($params)
+    {
+        if (!\Configuration::get('AI_SMART_TALK_CUSTOMER_SYNC')) {
+            return;
+        }
+        
+        $customer = $params['newCustomer'];
+        $sync = new CustomerSync();
+        $sync->exportCustomerBatch([$customer]);
+    }
+
+    public function hookActionCustomerAccountUpdate($params)
+    {
+        if (!\Configuration::get('AI_SMART_TALK_CUSTOMER_SYNC')) {
+            return;
+        }
+        
+        $customer = $params['customer'];
+        $sync = new CustomerSync();
+        $sync->exportCustomerBatch([$customer]);
+    }
+
+    public function hookActionCustomerDelete($params)
+    {
+        // Implementation for customer deletion sync
+        // This would call a different API endpoint to remove the customer from AI SmartTalk
     }
 }
