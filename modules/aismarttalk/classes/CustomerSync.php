@@ -145,6 +145,7 @@ class CustomerSync
         $firstAddress = !empty($addresses) ? reset($addresses) : null;
         
         $mappedData = [
+            'externalId' => (string)$customer->id,
             'email'      => $customer->email,
             'firstname'  => $customer->firstname,
             'lastname'   => $customer->lastname,

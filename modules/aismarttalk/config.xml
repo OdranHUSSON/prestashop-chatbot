@@ -2,7 +2,7 @@
 <module>
     <name>aismarttalk</name>
     <displayName><![CDATA[AI SmartTalk]]></displayName>
-    <version><![CDATA[2.2.1]]></version>
+    <version><![CDATA[2.2.3]]></version>
     <description><![CDATA[https://aismarttalk.tech/]]></description>
     <author><![CDATA[AI SmartTalk]]></author>
     <tab><![CDATA[front_office_features]]></tab>
