@@ -47,6 +47,26 @@
         <target>Ouvrir le backoffice AI SmartTalk</target>
         <note>Line: </note>
       </trans-unit>
+      <trans-unit id="a8b950fb6bdd647c29e3b9b5df89df31">
+        <source>Customer Synchronization</source>
+        <target>Synchronisation des clients</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="7c6c2e5d48ab37a007cbf70d3ea25fa4">
+        <source>Auto-sync customers with AI SmartTalk</source>
+        <target>Synchronisation automatique des clients avec AI SmartTalk</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="b5b229b9a4122dfad12c94a21c1fe08d">
+        <source>Export Existing Customers</source>
+        <target>Exporter les clients existants</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="c3bf447eabe632720a3aa1542a11b9cc">
+        <source>Product Synchronization</source>
+        <target>Synchronisation des produits</target>
+        <note>Line: </note>
+      </trans-unit>
     </body>
   </file>
 </xliff>
