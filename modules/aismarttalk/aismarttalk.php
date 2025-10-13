@@ -46,15 +46,12 @@ class AiSmartTalk extends Module
 
         $this->confirmUninstall = $this->trans('Are you sure you want to uninstall?', [], 'Modules.Aismarttalk.Admin');
 
-        // Check if the environment is production or development
-        if ($_SERVER['HTTP_HOST'] !== 'prestashop') {
-            // Production environment
+        // Initialize URL configurations with defaults if not already set
+        if (!Configuration::get('AI_SMART_TALK_URL')) {
             Configuration::updateValue('AI_SMART_TALK_URL', 'https://aismarttalk.tech');
+        }
+        if (!Configuration::get('AI_SMART_TALK_CDN')) {
             Configuration::updateValue('AI_SMART_TALK_CDN', 'https://cdn.aismarttalk.tech');
-        } else {
-            // Development environment
-            Configuration::updateValue('AI_SMART_TALK_URL', 'http://ai-toolkit-node:3000');
-            Configuration::updateValue('AI_SMART_TALK_CDN', 'http://localhost:3001');
         }
 
         $this->addSynchField();
@@ -68,6 +65,15 @@ class AiSmartTalk extends Module
         }
 
         if (!Configuration::updateValue('AI_SMART_TALK_ENABLED', false)) {
+            return false;
+        }
+
+        // Set default URL configurations
+        if (!Configuration::updateValue('AI_SMART_TALK_URL', 'https://aismarttalk.tech')) {
+            return false;
+        }
+
+        if (!Configuration::updateValue('AI_SMART_TALK_CDN', 'https://cdn.aismarttalk.tech')) {
             return false;
         }
 
@@ -109,7 +115,11 @@ class AiSmartTalk extends Module
             && $this->unregisterHook('actionAuthentication')
             && $this->unregisterHook('actionCustomerLogout')
             && $this->removeSynchField()
-            && Configuration::deleteByName('AI_SMART_TALK_ENABLED');
+            && Configuration::deleteByName('AI_SMART_TALK_ENABLED')
+            && Configuration::deleteByName('AI_SMART_TALK_URL')
+            && Configuration::deleteByName('AI_SMART_TALK_CDN')
+            && Configuration::deleteByName('CHAT_MODEL_ID')
+            && Configuration::deleteByName('CHAT_MODEL_TOKEN');
     }
 
     public function hookActionAuthentication($params)
@@ -255,6 +265,22 @@ class AiSmartTalk extends Module
             'input' => [
                 [
                     'type' => 'text',
+                    'label' => $this->trans('AI SmartTalk URL', [], 'Modules.Aismarttalk.Admin'),
+                    'name' => 'AI_SMART_TALK_URL',
+                    'required' => true,
+                    'desc' => $this->trans('Base URL of AI SmartTalk API', [], 'Modules.Aismarttalk.Admin'),
+                    'value' => Configuration::get('AI_SMART_TALK_URL'),
+                ],
+                [
+                    'type' => 'text',
+                    'label' => $this->trans('AI SmartTalk CDN URL', [], 'Modules.Aismarttalk.Admin'),
+                    'name' => 'AI_SMART_TALK_CDN',
+                    'required' => true,
+                    'desc' => $this->trans('CDN URL for AI SmartTalk resources', [], 'Modules.Aismarttalk.Admin'),
+                    'value' => Configuration::get('AI_SMART_TALK_CDN'),
+                ],
+                [
+                    'type' => 'text',
                     'label' => $this->trans('Chat Model ID', [], 'Modules.Aismarttalk.Admin'),
                     'name' => 'CHAT_MODEL_ID',
                     'required' => true,
@@ -285,6 +311,8 @@ class AiSmartTalk extends Module
         $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
         $helper->title = $this->displayName;
         $helper->submit_action = 'submit' . $this->name;
+        $helper->fields_value['AI_SMART_TALK_URL'] = Configuration::get('AI_SMART_TALK_URL');
+        $helper->fields_value['AI_SMART_TALK_CDN'] = Configuration::get('AI_SMART_TALK_CDN');
         $helper->fields_value['CHAT_MODEL_ID'] = Configuration::get('CHAT_MODEL_ID');
         $helper->fields_value['CHAT_MODEL_TOKEN'] = Configuration::get('CHAT_MODEL_TOKEN');
 
@@ -397,6 +425,8 @@ class AiSmartTalk extends Module
     {
         $output = '';
         if (Tools::isSubmit('submit' . $this->name)) {
+            Configuration::updateValue('AI_SMART_TALK_URL', Tools::getValue('AI_SMART_TALK_URL'));
+            Configuration::updateValue('AI_SMART_TALK_CDN', Tools::getValue('AI_SMART_TALK_CDN'));
             Configuration::updateValue('CHAT_MODEL_ID', Tools::getValue('CHAT_MODEL_ID'));
             Configuration::updateValue('CHAT_MODEL_TOKEN', Tools::getValue('CHAT_MODEL_TOKEN'));
 
@@ -415,6 +445,12 @@ class AiSmartTalk extends Module
     {
         Configuration::deleteByName('CHAT_MODEL_ID');
         Configuration::deleteByName('CHAT_MODEL_TOKEN');
+        Configuration::deleteByName('AI_SMART_TALK_URL');
+        Configuration::deleteByName('AI_SMART_TALK_CDN');
+
+        // Reset to default values
+        Configuration::updateValue('AI_SMART_TALK_URL', 'https://aismarttalk.tech');
+        Configuration::updateValue('AI_SMART_TALK_CDN', 'https://cdn.aismarttalk.tech');
 
         return true;
     }
