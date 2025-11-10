@@ -68,10 +68,6 @@ class SynchProductsToAiSmartTalk extends Module
             $finalPrice = $psProduct->getPrice();
             $hasSpecialPrice = !empty($product['specific_price']) || !empty($product['price_reduction']);
             
-            // Determine stock status
-            $stockQuantity = isset($product['stock_quantity']) ? (int)$product['stock_quantity'] : 0;
-            $stockStatus = $stockQuantity > 0 ? 'instock' : 'outofstock';
-            
             // Format dates
             $priceFrom = !empty($product['price_from']) && $product['price_from'] !== '0000-00-00 00:00:00' ? $product['price_from'] : null;
             $priceTo = !empty($product['price_to']) && $product['price_to'] !== '0000-00-00 00:00:00' ? $product['price_to'] : null;
@@ -85,7 +81,6 @@ class SynchProductsToAiSmartTalk extends Module
                 'price' => $finalPrice,
                 'currency' => $product['currency_code'] ?? 'EUR',
                 'currency_sign' => $currencySign,
-                'stock_status' => $stockStatus,
                 'has_special_price' => $hasSpecialPrice,
                 'price_from' => $priceFrom,
                 'price_to' => $priceTo,

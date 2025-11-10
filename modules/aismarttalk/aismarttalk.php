@@ -94,7 +94,6 @@ class AiSmartTalk extends Module
             'actionProductCreate',
             'actionProductDelete',
             'actionUpdateQuantity',
-            'actionProductOutOfStock',
             'actionAuthentication',
             'actionCustomerLogout',
             'actionCustomerAccountAdd',
@@ -121,7 +120,6 @@ class AiSmartTalk extends Module
             && $this->unregisterHook('actionProductCreate')
             && $this->unregisterHook('actionProductDelete')
             && $this->unregisterHook('actionUpdateQuantity')
-            && $this->unregisterHook('actionProductOutOfStock')
             && $this->unregisterHook('actionAuthentication')
             && $this->unregisterHook('actionCustomerLogout')
             && $this->removeSynchField()
@@ -412,6 +410,13 @@ class AiSmartTalk extends Module
 
     public function hookActionProductUpdate($params)
     {
+        $idProduct = $params['id_product'];
+        $currentQuantity = (int) StockAvailable::getQuantityAvailableByProduct($idProduct);
+    
+        if ($currentQuantity == 0) {
+            return;
+        }
+
         $lastTimeWeSynch = Db::getInstance()->getValue('SELECT aismarttalk_last_source FROM ' . _DB_PREFIX_ . 'product WHERE id_product = ' . (int) $params['id_product']);
 
         $date = new DateTime();
@@ -443,33 +448,23 @@ class AiSmartTalk extends Module
 
     public function hookActionUpdateQuantity($params)
     {
-        if (!isset($params['id_product'])) {
+        if (!isset($params['id_product']) || !isset($params['quantity'])) {
             return;
         }
 
         $idProduct = $params['id_product'];
+        $newQuantity = $params['quantity'];
         
-        // Récupérer la quantité actuelle (après mise à jour)
+        // Récupérer la quantité actuelle (avant mise à jour)
         $currentQuantity = (int) StockAvailable::getQuantityAvailableByProduct($idProduct);
-        
-        // Déterminer la quantité précédente
-        // Vérifier différentes clés possibles pour le delta
-        $deltaQuantity = 0;
-        if (isset($params['delta_quantity'])) {
-            $deltaQuantity = (int) $params['delta_quantity'];
-        } elseif (isset($params['quantity'])) {
-            // Si quantity est fourni, c'est le delta dans certains contextes
-            $deltaQuantity = (int) $params['quantity'];
-        }
-        
-        // Si on n'a pas de delta, on ne peut pas déterminer la transition, donc on skip
-        if ($deltaQuantity === 0) {
-            return;
-        }
 
-        // Synchroniser uniquement si on passe de 0 à >0 (réapprovisionnement)
-        // Le passage à 0 est géré par hookActionProductOutOfStock
-        if ($currentQuantity === 0 && $deltaQuantity > 0) {
+        // Si le produit passe à 0 stock (rupture), le supprimer d'AI SmartTalk
+        if ($newQuantity === 0) {
+            $api = new CleanProductDocuments();
+            $api(['productIds' => [(string) $idProduct]]);
+        }
+        // Si le produit passe de 0 à >0 (réapprovisionnement), le synchroniser
+        elseif ($currentQuantity == 0 && $newQuantity > 0) {
             $api = new SynchProductsToAiSmartTalk();
             $api(['productIds' => [(string) $idProduct], 'forceSync' => true]);
             $now = new DateTime();
@@ -477,20 +472,6 @@ class AiSmartTalk extends Module
                 'UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_last_source = "' . $now->format('Y-m-d H:i:s') . '" WHERE id_product = ' . (int) $idProduct
             );
         }
-    }
-
-    public function hookActionProductOutOfStock($params)
-    {
-        if (!isset($params['id_product'])) {
-            return;
-        }die('out of stock');
-
-        // Synchronisation quand le produit passe à 0
-        $idProduct = $params['id_product'];
-        $api = new SynchProductsToAiSmartTalk();
-        $api(['productIds' => [(string) $idProduct], 'forceSync' => true]);
-        $now = new DateTime();
-        Db::getInstance()->execute('UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_last_source = "' . $now->format('Y-m-d H:i:s') . '" WHERE id_product = ' . (int) $idProduct);
     }
 
     private function getApiHost()
