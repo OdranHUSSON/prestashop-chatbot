@@ -38,6 +38,11 @@ class SynchProductsToAiSmartTalk extends Module
             $this->$key = $value;
         }
 
+        // Si c'est une re-synchronisation forcée, nettoyer d'abord les produits en rupture de stock
+        if ($this->forceSync === true) {
+            $this->cleanOutOfStockProducts();
+        }
+
         return $this->sendProductsToApi();
     }
 
@@ -190,12 +195,45 @@ class SynchProductsToAiSmartTalk extends Module
                 AND (sp.from = "0000-00-00 00:00:00" OR sp.from <= NOW()) 
                 AND (sp.to = "0000-00-00 00:00:00" OR sp.to >= NOW())
                 AND sp.id_shop = ' . $defaultShopId . '
-            WHERE pl.id_lang = ' . $defaultLangId . ' AND cl.id_lang = ' . $defaultLangId . ' AND p.active = 1';
+            WHERE pl.id_lang = ' . $defaultLangId . ' AND cl.id_lang = ' . $defaultLangId . ' AND p.active = 1
+                AND COALESCE(sa.quantity, 0) > 0';
 
         $sql .= $this->forceSync === false ? ' AND p.aismarttalk_synch = 0' : '';
         $sql .= $this->productIds ? ' AND p.id_product IN (' . implode(',', $this->productIds) . ')' : '';
         $products = \Db::getInstance()->executeS($sql);
 
         return $products;
+    }
+
+    /**
+     * Nettoie les produits avec stock <= 0 d'AI SmartTalk lors d'une re-synchronisation
+     */
+    private function cleanOutOfStockProducts()
+    {
+        $defaultShopId = (int)\Context::getContext()->shop->id;
+        
+        // Récupérer tous les produits qui ont été synchronisés mais qui ont maintenant stock <= 0
+        $sql = 'SELECT p.id_product
+                FROM ' . _DB_PREFIX_ . 'product p 
+                LEFT JOIN ' . _DB_PREFIX_ . 'stock_available sa ON p.id_product = sa.id_product 
+                    AND sa.id_product_attribute = 0 
+                    AND sa.id_shop = ' . $defaultShopId . '
+                WHERE p.aismarttalk_synch = 1 
+                    AND COALESCE(sa.quantity, 0) <= 0';
+        
+        $outOfStockProducts = \Db::getInstance()->executeS($sql);
+        
+        if (!empty($outOfStockProducts)) {
+            $productIds = array_column($outOfStockProducts, 'id_product');
+            
+            // Utiliser CleanProductDocuments pour supprimer ces produits d'AI SmartTalk
+            $cleanProductDocuments = new \PrestaShop\AiSmartTalk\CleanProductDocuments();
+            $cleanProductDocuments(['productIds' => array_map('strval', $productIds)]);
+            
+            // Marquer ces produits comme non synchronisés dans la base de données
+            $ids = implode(',', array_map('intval', $productIds));
+            $sql = 'UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_synch = 0 WHERE id_product IN (' . $ids . ')';
+            \Db::getInstance()->execute($sql);
+        }
     }
 }
