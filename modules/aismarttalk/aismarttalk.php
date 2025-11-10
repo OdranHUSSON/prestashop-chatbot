@@ -452,19 +452,30 @@ class AiSmartTalk extends Module
         // Récupérer la quantité actuelle (après mise à jour)
         $currentQuantity = (int) StockAvailable::getQuantityAvailableByProduct($idProduct);
         
-        // Récupérer le delta de quantité si disponible
-        $deltaQuantity = isset($params['delta_quantity']) ? (int) $params['delta_quantity'] : 0;
+        // Déterminer la quantité précédente
+        // Vérifier différentes clés possibles pour le delta
+        $deltaQuantity = 0;
+        if (isset($params['delta_quantity'])) {
+            $deltaQuantity = (int) $params['delta_quantity'];
+        } elseif (isset($params['quantity'])) {
+            // Si quantity est fourni, c'est le delta dans certains contextes
+            $deltaQuantity = (int) $params['quantity'];
+        }
         
-        // Calculer la quantité précédente
-        $previousQuantity = $currentQuantity - $deltaQuantity;
-        
+        // Si on n'a pas de delta, on ne peut pas déterminer la transition, donc on skip
+        if ($deltaQuantity === 0) {
+            return;
+        }
+
         // Synchroniser uniquement si on passe de 0 à >0 (réapprovisionnement)
         // Le passage à 0 est géré par hookActionProductOutOfStock
-        if ($previousQuantity <= 0 && $currentQuantity > 0) {
+        if ($currentQuantity === 0 && $deltaQuantity > 0) {
             $api = new SynchProductsToAiSmartTalk();
             $api(['productIds' => [(string) $idProduct], 'forceSync' => true]);
             $now = new DateTime();
-            Db::getInstance()->execute('UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_last_source = "' . $now->format('Y-m-d H:i:s') . '" WHERE id_product = ' . (int) $idProduct);
+            Db::getInstance()->execute(
+                'UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_last_source = "' . $now->format('Y-m-d H:i:s') . '" WHERE id_product = ' . (int) $idProduct
+            );
         }
     }
 
@@ -472,7 +483,7 @@ class AiSmartTalk extends Module
     {
         if (!isset($params['id_product'])) {
             return;
-        }
+        }die('out of stock');
 
         // Synchronisation quand le produit passe à 0
         $idProduct = $params['id_product'];
