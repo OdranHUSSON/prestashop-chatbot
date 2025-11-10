@@ -93,6 +93,8 @@ class AiSmartTalk extends Module
             'actionProductUpdate',
             'actionProductCreate',
             'actionProductDelete',
+            'actionUpdateQuantity',
+            'actionProductOutOfStock',
             'actionAuthentication',
             'actionCustomerLogout',
             'actionCustomerAccountAdd',
@@ -118,6 +120,8 @@ class AiSmartTalk extends Module
             && $this->unregisterHook('actionProductUpdate')
             && $this->unregisterHook('actionProductCreate')
             && $this->unregisterHook('actionProductDelete')
+            && $this->unregisterHook('actionUpdateQuantity')
+            && $this->unregisterHook('actionProductOutOfStock')
             && $this->unregisterHook('actionAuthentication')
             && $this->unregisterHook('actionCustomerLogout')
             && $this->removeSynchField()
@@ -435,6 +439,47 @@ class AiSmartTalk extends Module
         $idProduct = $params['id_product'];
         $api = new CleanProductDocuments();
         $api(['productIds' => [(string) $idProduct]]);
+    }
+
+    public function hookActionUpdateQuantity($params)
+    {
+        if (!isset($params['id_product'])) {
+            return;
+        }
+
+        $idProduct = $params['id_product'];
+        
+        // Récupérer la quantité actuelle (après mise à jour)
+        $currentQuantity = (int) StockAvailable::getQuantityAvailableByProduct($idProduct);
+        
+        // Récupérer le delta de quantité si disponible
+        $deltaQuantity = isset($params['delta_quantity']) ? (int) $params['delta_quantity'] : 0;
+        
+        // Calculer la quantité précédente
+        $previousQuantity = $currentQuantity - $deltaQuantity;
+        
+        // Synchroniser uniquement si on passe de 0 à >0 (réapprovisionnement)
+        // Le passage à 0 est géré par hookActionProductOutOfStock
+        if ($previousQuantity <= 0 && $currentQuantity > 0) {
+            $api = new SynchProductsToAiSmartTalk();
+            $api(['productIds' => [(string) $idProduct], 'forceSync' => true]);
+            $now = new DateTime();
+            Db::getInstance()->execute('UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_last_source = "' . $now->format('Y-m-d H:i:s') . '" WHERE id_product = ' . (int) $idProduct);
+        }
+    }
+
+    public function hookActionProductOutOfStock($params)
+    {
+        if (!isset($params['id_product'])) {
+            return;
+        }
+
+        // Synchronisation quand le produit passe à 0
+        $idProduct = $params['id_product'];
+        $api = new SynchProductsToAiSmartTalk();
+        $api(['productIds' => [(string) $idProduct], 'forceSync' => true]);
+        $now = new DateTime();
+        Db::getInstance()->execute('UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_last_source = "' . $now->format('Y-m-d H:i:s') . '" WHERE id_product = ' . (int) $idProduct);
     }
 
     private function getApiHost()
