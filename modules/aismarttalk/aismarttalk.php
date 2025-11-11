@@ -93,6 +93,7 @@ class AiSmartTalk extends Module
             'actionProductUpdate',
             'actionProductCreate',
             'actionProductDelete',
+            'actionUpdateQuantity',
             'actionAuthentication',
             'actionCustomerLogout',
             'actionCustomerAccountAdd',
@@ -118,6 +119,7 @@ class AiSmartTalk extends Module
             && $this->unregisterHook('actionProductUpdate')
             && $this->unregisterHook('actionProductCreate')
             && $this->unregisterHook('actionProductDelete')
+            && $this->unregisterHook('actionUpdateQuantity')
             && $this->unregisterHook('actionAuthentication')
             && $this->unregisterHook('actionCustomerLogout')
             && $this->removeSynchField()
@@ -408,6 +410,13 @@ class AiSmartTalk extends Module
 
     public function hookActionProductUpdate($params)
     {
+        $idProduct = $params['id_product'];
+        $currentQuantity = (int) StockAvailable::getQuantityAvailableByProduct($idProduct);
+    
+        if ($currentQuantity == 0) {
+            return;
+        }
+
         $lastTimeWeSynch = Db::getInstance()->getValue('SELECT aismarttalk_last_source FROM ' . _DB_PREFIX_ . 'product WHERE id_product = ' . (int) $params['id_product']);
 
         $date = new DateTime();
@@ -435,6 +444,34 @@ class AiSmartTalk extends Module
         $idProduct = $params['id_product'];
         $api = new CleanProductDocuments();
         $api(['productIds' => [(string) $idProduct]]);
+    }
+
+    public function hookActionUpdateQuantity($params)
+    {
+        if (!isset($params['id_product']) || !isset($params['quantity'])) {
+            return;
+        }
+
+        $idProduct = $params['id_product'];
+        $newQuantity = $params['quantity'];
+        
+        // Récupérer la quantité actuelle (avant mise à jour)
+        $currentQuantity = (int) StockAvailable::getQuantityAvailableByProduct($idProduct);
+
+        // Si le produit passe à 0 stock (rupture), le supprimer d'AI SmartTalk
+        if ($newQuantity === 0) {
+            $api = new CleanProductDocuments();
+            $api(['productIds' => [(string) $idProduct]]);
+        }
+        // Si le produit passe de 0 à >0 (réapprovisionnement), le synchroniser
+        elseif ($currentQuantity == 0 && $newQuantity > 0) {
+            $api = new SynchProductsToAiSmartTalk();
+            $api(['productIds' => [(string) $idProduct], 'forceSync' => true]);
+            $now = new DateTime();
+            Db::getInstance()->execute(
+                'UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_last_source = "' . $now->format('Y-m-d H:i:s') . '" WHERE id_product = ' . (int) $idProduct
+            );
+        }
     }
 
     private function getApiHost()

@@ -38,6 +38,11 @@ class SynchProductsToAiSmartTalk extends Module
             $this->$key = $value;
         }
 
+        // Si c'est une re-synchronisation forcée, nettoyer d'abord les produits en rupture de stock
+        if ($this->forceSync === true) {
+            $this->cleanOutOfStockProducts();
+        }
+
         return $this->sendProductsToApi();
     }
 
@@ -47,16 +52,30 @@ class SynchProductsToAiSmartTalk extends Module
 
         $baseLink = \Tools::getHttpHost(true) . __PS_BASE_URI__;
 
+        // Get default currency information
+        $defaultCurrencyId = (int)\Configuration::get('PS_CURRENCY_DEFAULT');
+        $defaultCurrency = new \Currency($defaultCurrencyId);
+        $currencySign = $defaultCurrency->sign ?? '€';
+
         $documentDatas = [];
         $synchronizedProductIds = [];
         foreach ($products as $product) {
             $psProduct = new \Product($product['id_product']);
             $productUrl = $baseLink . $product['link_rewrite'] . '/' . $product['id_product'] . '-' . $product['link_rewrite'] . '.html';
 
+            $imageUrl = null;
             if (!empty($product['id_image'])) {
                 $defaultLangId = \Configuration::get('PS_LANG_DEFAULT');
                 $imageUrl = \Context::getContext()->link->getImageLink($psProduct->link_rewrite[$defaultLangId], $product['id_image']);
             }
+
+            // Calculate final price considering specific prices (promotions)
+            $finalPrice = $psProduct->getPrice();
+            $hasSpecialPrice = !empty($product['specific_price']) || !empty($product['price_reduction']);
+            
+            // Format dates
+            $priceFrom = !empty($product['price_from']) && $product['price_from'] !== '0000-00-00 00:00:00' ? $product['price_from'] : null;
+            $priceTo = !empty($product['price_to']) && $product['price_to'] !== '0000-00-00 00:00:00' ? $product['price_to'] : null;
 
             $documentDatas[] = [
                 'id' => $product['id_product'],
@@ -64,7 +83,12 @@ class SynchProductsToAiSmartTalk extends Module
                 'description' => strip_tags($product['description']),
                 'description_short' => strip_tags($product['description_short']),
                 'reference' => $product['reference'],
-                'price' => $psProduct->getPrice(),
+                'price' => $finalPrice,
+                'currency' => $product['currency_code'] ?? 'EUR',
+                'currency_sign' => $currencySign,
+                'has_special_price' => $hasSpecialPrice,
+                'price_from' => $priceFrom,
+                'price_to' => $priceTo,
                 'url' => $productUrl,
                 'image_url' => $imageUrl,
             ];
@@ -144,18 +168,72 @@ class SynchProductsToAiSmartTalk extends Module
 
     private function getProductsToSynchronize()
     {
+        $defaultLangId = (int)\Configuration::get('PS_LANG_DEFAULT');
+        $defaultShopId = (int)\Context::getContext()->shop->id;
+        $defaultCurrencyId = (int)\Configuration::get('PS_CURRENCY_DEFAULT');
+        
         $sql = 'SELECT p.id_product, pl.name, pl.description, pl.description_short,
-                   p.reference, p.price, cl.link_rewrite, i.id_image
+                   p.reference, p.price, cl.link_rewrite, i.id_image,
+                   sa.quantity as stock_quantity,
+                   p.active,
+                   p.available_date,
+                   c.iso_code as currency_code,
+                   sp.price as specific_price,
+                   sp.from as price_from,
+                   sp.to as price_to,
+                   sp.reduction as price_reduction,
+                   sp.reduction_type
             FROM ' . _DB_PREFIX_ . 'product p 
             JOIN ' . _DB_PREFIX_ . 'product_lang pl ON p.id_product = pl.id_product 
             JOIN ' . _DB_PREFIX_ . 'category_lang cl ON p.id_category_default = cl.id_category 
             LEFT JOIN ' . _DB_PREFIX_ . 'image i ON p.id_product = i.id_product AND i.cover = 1
-            WHERE pl.id_lang = 1 AND cl.id_lang = 1 AND p.active = 1';
+            LEFT JOIN ' . _DB_PREFIX_ . 'stock_available sa ON p.id_product = sa.id_product 
+                AND sa.id_product_attribute = 0 
+                AND sa.id_shop = ' . $defaultShopId . '
+            LEFT JOIN ' . _DB_PREFIX_ . 'currency c ON c.id_currency = ' . $defaultCurrencyId . '
+            LEFT JOIN ' . _DB_PREFIX_ . 'specific_price sp ON p.id_product = sp.id_product 
+                AND (sp.from = "0000-00-00 00:00:00" OR sp.from <= NOW()) 
+                AND (sp.to = "0000-00-00 00:00:00" OR sp.to >= NOW())
+                AND sp.id_shop = ' . $defaultShopId . '
+            WHERE pl.id_lang = ' . $defaultLangId . ' AND cl.id_lang = ' . $defaultLangId . ' AND p.active = 1
+                AND COALESCE(sa.quantity, 0) > 0';
 
         $sql .= $this->forceSync === false ? ' AND p.aismarttalk_synch = 0' : '';
         $sql .= $this->productIds ? ' AND p.id_product IN (' . implode(',', $this->productIds) . ')' : '';
         $products = \Db::getInstance()->executeS($sql);
 
         return $products;
+    }
+
+    /**
+     * Nettoie les produits avec stock <= 0 d'AI SmartTalk lors d'une re-synchronisation
+     */
+    private function cleanOutOfStockProducts()
+    {
+        $defaultShopId = (int)\Context::getContext()->shop->id;
+        
+        // Récupérer tous les produits qui ont été synchronisés mais qui ont maintenant stock <= 0
+        $sql = 'SELECT p.id_product
+                FROM ' . _DB_PREFIX_ . 'product p 
+                LEFT JOIN ' . _DB_PREFIX_ . 'stock_available sa ON p.id_product = sa.id_product 
+                    AND sa.id_product_attribute = 0 
+                    AND sa.id_shop = ' . $defaultShopId . '
+                WHERE p.aismarttalk_synch = 1 
+                    AND COALESCE(sa.quantity, 0) <= 0';
+        
+        $outOfStockProducts = \Db::getInstance()->executeS($sql);
+        
+        if (!empty($outOfStockProducts)) {
+            $productIds = array_column($outOfStockProducts, 'id_product');
+            
+            // Utiliser CleanProductDocuments pour supprimer ces produits d'AI SmartTalk
+            $cleanProductDocuments = new \PrestaShop\AiSmartTalk\CleanProductDocuments();
+            $cleanProductDocuments(['productIds' => array_map('strval', $productIds)]);
+            
+            // Marquer ces produits comme non synchronisés dans la base de données
+            $ids = implode(',', array_map('intval', $productIds));
+            $sql = 'UPDATE ' . _DB_PREFIX_ . 'product SET aismarttalk_synch = 0 WHERE id_product IN (' . $ids . ')';
+            \Db::getInstance()->execute($sql);
+        }
     }
 }
