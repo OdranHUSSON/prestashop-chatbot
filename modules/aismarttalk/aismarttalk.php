@@ -548,31 +548,6 @@ class AiSmartTalk extends Module
             && empty(Configuration::get('AI_SMART_TALK_ERROR'));
     }
 
-    /**
-     * Détecte si on est en environnement de développement local avec Docker
-     * @return bool
-     */
-    private function isLocalDevEnvironment()
-    {
-        // Vérifier si on utilise Docker en local (plusieurs méthodes de détection)
-        $dockerIndicators = [
-            // Variables d'environnement Docker courantes
-            isset($_ENV['DOCKER_HOST']),
-            isset($_ENV['DOCKER_COMPOSE']),
-            // Vérifier si l'URL contient localhost ou des ports de dev
-            strpos($this->getApiHost(), 'localhost') !== false,
-            strpos($this->getApiHost(), '127.0.0.1') !== false,
-            strpos($this->getApiHost(), ':3000') !== false,
-            strpos($this->getApiHost(), 'ai-toolkit-node') !== false,
-            // Vérifier le fichier /.dockerenv (présent dans les conteneurs Docker)
-            file_exists('/.dockerenv'),
-            // Vérifier si PrestaShop détecte un environnement de dev
-            defined('_PS_MODE_DEV_') && _PS_MODE_DEV_
-        ];
-
-        return in_array(true, $dockerIndicators, true);
-    }
-
     private function handleForm()
     {
         $output = '';
