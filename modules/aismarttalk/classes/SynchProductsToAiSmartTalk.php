@@ -39,7 +39,7 @@ class SynchProductsToAiSmartTalk extends Module
         }
 
         // Si c'est une re-synchronisation forcée, nettoyer d'abord les produits en rupture de stock
-        if ($this->forceSync === true && $this->productIds) {
+        if ($this->forceSync === true && empty($this->productIds)) {
             $this->cleanOutOfStockProducts();
         }
 
