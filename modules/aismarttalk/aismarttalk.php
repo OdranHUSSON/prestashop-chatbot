@@ -30,7 +30,7 @@ class AiSmartTalk extends Module
     {
         $this->name = 'aismarttalk';
         $this->tab = 'front_office_features';
-        $this->version = '2.2.3';
+        $this->version = '2.3.0';
         $this->author = 'AI SmartTalk';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = [
@@ -60,6 +60,17 @@ class AiSmartTalk extends Module
             Configuration::updateValue('AI_SMART_TALK_CDN', $defaultCdn);
         }
 
+        // Set default iframe position if not set
+        if (empty(Configuration::get('AI_SMART_TALK_IFRAME_POSITION'))) {
+            Configuration::updateValue('AI_SMART_TALK_IFRAME_POSITION', 'footer');
+        }
+
+        // Set default product sync if not set (disabled by default)
+        $productSyncConfig = Configuration::get('AI_SMART_TALK_PRODUCT_SYNC');
+        if ($productSyncConfig === null || $productSyncConfig === '') {
+            Configuration::updateValue('AI_SMART_TALK_PRODUCT_SYNC', false);
+        }
+
         $this->addSynchField();
         $this->registerAiSmartTalkHooks();
     }
@@ -83,6 +94,16 @@ class AiSmartTalk extends Module
             return false;
         }
 
+        // Set default iframe position
+        if (!Configuration::updateValue('AI_SMART_TALK_IFRAME_POSITION', 'footer')) {
+            return false;
+        }
+
+        // Set default product sync to disabled (users can choose CSV import instead)
+        if (!Configuration::updateValue('AI_SMART_TALK_PRODUCT_SYNC', false)) {
+            return false;
+        }
+
         return true;
     }
 
@@ -90,6 +111,7 @@ class AiSmartTalk extends Module
     {
         $hooks = [
             'displayFooter',
+            'displayBeforeFooter',
             'actionProductUpdate',
             'actionProductCreate',
             'actionProductDelete',
@@ -116,6 +138,7 @@ class AiSmartTalk extends Module
     {
         return parent::uninstall()
             && $this->unregisterHook('displayFooter')
+            && $this->unregisterHook('displayBeforeFooter')
             && $this->unregisterHook('actionProductUpdate')
             && $this->unregisterHook('actionProductCreate')
             && $this->unregisterHook('actionProductDelete')
@@ -126,6 +149,8 @@ class AiSmartTalk extends Module
             && Configuration::deleteByName('AI_SMART_TALK_ENABLED')
             && Configuration::deleteByName('AI_SMART_TALK_URL')
             && Configuration::deleteByName('AI_SMART_TALK_CDN')
+            && Configuration::deleteByName('AI_SMART_TALK_IFRAME_POSITION')
+            && Configuration::deleteByName('AI_SMART_TALK_PRODUCT_SYNC')
             && Configuration::deleteByName('CHAT_MODEL_ID')
             && Configuration::deleteByName('CHAT_MODEL_TOKEN');
     }
@@ -250,26 +275,42 @@ class AiSmartTalk extends Module
             $output .= $this->displayConfirmation($this->trans('WhiteLabel settings updated.', [], 'Modules.Aismarttalk.Admin'));
         }
 
-        $this->context->smarty->assign([
-            'customerSyncEnabled' => Configuration::get('AI_SMART_TALK_CUSTOMER_SYNC'),
-            'currentIndex' => $this->context->link->getAdminLink('AdminAiSmartTalk'),
-            'token' => Tools::getAdminTokenLite('AdminAiSmartTalk'),
-        ]);
-
-        $output .= $this->display(__FILE__, 'views/templates/admin/customer_sync.tpl');
-
-        $output .= $this->handleForm();
-        $output .= $this->getConcentInfoIfNotConfigured();
-        
-        // Always show the configuration form
-        $output .= $this->displayForm();
-        $output .= $this->displayWhiteLabelForm();
-        
-        // Show backoffice and chatbot toggle if configured
-        if ($this->isConfigured()) {
-            $output .= $this->displayBackOfficeIframe();
-            $output .= $this->displayChatbotToggleForm();
+        if (Tools::isSubmit('submitIframePosition')) {
+            $position = Tools::getValue('AI_SMART_TALK_IFRAME_POSITION');
+            if (!in_array($position, ['footer', 'before_footer'])) {
+                $position = 'footer';
+            }
+            Configuration::updateValue('AI_SMART_TALK_IFRAME_POSITION', $position);
+            $output .= $this->displayConfirmation($this->trans('Iframe position updated.', [], 'Modules.Aismarttalk.Admin'));
         }
+
+        if (Tools::isSubmit('submitProductSync')) {
+            $productSyncEnabled = (bool) Tools::getValue('AI_SMART_TALK_PRODUCT_SYNC');
+            Configuration::updateValue('AI_SMART_TALK_PRODUCT_SYNC', $productSyncEnabled);
+            
+            if ($productSyncEnabled) {
+                $output .= $this->displayConfirmation($this->trans('Product synchronization enabled. Products will automatically sync with AI SmartTalk.', [], 'Modules.Aismarttalk.Admin'));
+            } else {
+                $output .= $this->displayConfirmation($this->trans('Product synchronization disabled. You can use CSV import in AI SmartTalk instead.', [], 'Modules.Aismarttalk.Admin'));
+            }
+        }
+
+        // Handle form submissions first
+        $output .= $this->handleForm();
+        
+        // Main configuration
+        $output .= $this->displayForm();
+        
+        // Show additional settings if configured
+        if ($this->isConfigured()) {
+            $output .= $this->displayChatbotToggleForm();
+            $output .= $this->displayProductSyncForm();
+            $output .= $this->displayIframePositionForm();
+            $output .= $this->displayBackOfficeIframe();
+        }
+        
+        // Advanced settings
+        $output .= $this->displayWhiteLabelForm();
 
         return $output;
     }
@@ -381,7 +422,144 @@ class AiSmartTalk extends Module
         return $helper->generateForm($fields_form);
     }
 
+    public function displayIframePositionForm()
+    {
+        $default_lang = (int) Configuration::get('PS_LANG_DEFAULT');
+
+        $fields_form[0]['form'] = [
+            'legend' => [
+                'title' => $this->trans('Iframe Position', [], 'Modules.Aismarttalk.Admin'),
+                'icon' => 'icon-cog',
+            ],
+            'description' => $this->trans('Choose where to display the chatbot iframe on your website.', [], 'Modules.Aismarttalk.Admin'),
+            'input' => [
+                [
+                    'type' => 'radio',
+                    'label' => $this->trans('Iframe Position', [], 'Modules.Aismarttalk.Admin'),
+                    'name' => 'AI_SMART_TALK_IFRAME_POSITION',
+                    'required' => true,
+                    'values' => [
+                        [
+                            'id' => 'position_footer',
+                            'value' => 'footer',
+                            'label' => $this->trans('In Footer', [], 'Modules.Aismarttalk.Admin'),
+                        ],
+                        [
+                            'id' => 'position_before_footer',
+                            'value' => 'before_footer',
+                            'label' => $this->trans('Before Footer', [], 'Modules.Aismarttalk.Admin'),
+                        ],
+                    ],
+                ],
+            ],
+            'submit' => [
+                'title' => $this->trans('Save Position Settings', [], 'Modules.Aismarttalk.Admin'),
+                'class' => 'btn btn-info pull-right',
+                'name' => 'submitIframePosition',
+            ],
+        ];
+
+        $helper = new HelperForm();
+        $helper->module = $this;
+        $helper->name_controller = $this->name;
+        $helper->token = Tools::getAdminTokenLite('AdminModules');
+        $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+        $helper->title = $this->displayName;
+        $helper->submit_action = 'submitIframePosition';
+        $helper->fields_value['AI_SMART_TALK_IFRAME_POSITION'] = Configuration::get('AI_SMART_TALK_IFRAME_POSITION');
+
+        return $helper->generateForm($fields_form);
+    }
+
+    public function displayProductSyncForm()
+    {
+        $default_lang = (int) Configuration::get('PS_LANG_DEFAULT');
+        $productSyncEnabled = (bool)Configuration::get('AI_SMART_TALK_PRODUCT_SYNC');
+
+        $fields_form[0]['form'] = [
+            'legend' => [
+                'title' => $this->trans('Product Synchronization', [], 'Modules.Aismarttalk.Admin'),
+                'icon' => 'icon-refresh',
+            ],
+            'description' => $this->trans('Choose how to manage your product data in AI SmartTalk. You can either enable automatic synchronization or use CSV import in the AI SmartTalk interface.', [], 'Modules.Aismarttalk.Admin'),
+            'input' => [
+                [
+                    'type' => 'switch',
+                    'label' => $this->trans('Enable Product Synchronization', [], 'Modules.Aismarttalk.Admin'),
+                    'name' => 'AI_SMART_TALK_PRODUCT_SYNC',
+                    'desc' => $this->trans('When enabled, products will automatically sync with AI SmartTalk when created, updated, or deleted. When disabled, you can use CSV import in AI SmartTalk.', [], 'Modules.Aismarttalk.Admin'),
+                    'is_bool' => true,
+                    'values' => [
+                        [
+                            'id' => 'product_sync_on',
+                            'value' => true,
+                            'label' => $this->trans('Enabled', [], 'Admin.Global'),
+                        ],
+                        [
+                            'id' => 'product_sync_off',
+                            'value' => false,
+                            'label' => $this->trans('Disabled', [], 'Admin.Global'),
+                        ],
+                    ],
+                ],
+            ],
+            'submit' => [
+                'title' => $this->trans('Save Product Sync Settings', [], 'Modules.Aismarttalk.Admin'),
+                'class' => 'btn btn-success pull-right',
+                'name' => 'submitProductSync',
+            ],
+        ];
+
+        $helper = new HelperForm();
+        $helper->module = $this;
+        $helper->name_controller = $this->name;
+        $helper->token = Tools::getAdminTokenLite('AdminModules');
+        $helper->currentIndex = AdminController::$currentIndex . '&configure=' . $this->name;
+        $helper->title = $this->displayName;
+        $helper->submit_action = 'submitProductSync';
+        $helper->fields_value['AI_SMART_TALK_PRODUCT_SYNC'] = $productSyncEnabled;
+
+        $formOutput = $helper->generateForm($fields_form);
+        
+        // Add Re-Synchronize All Products button if product sync is enabled
+        if ($productSyncEnabled) {
+            $formOutput .= '<div class="panel" style="margin-top: 10px;">
+                <div class="panel-heading">
+                    <h3 class="panel-title">
+                        <i class="icon icon-refresh"></i> ' . $this->trans('Product Sync Actions', [], 'Modules.Aismarttalk.Admin') . '
+                    </h3>
+                </div>
+                <div class="panel-body">
+                    <p>' . $this->trans('Manually synchronize products with AI SmartTalk.', [], 'Modules.Aismarttalk.Admin') . '</p>
+                    <a href="' . $_SERVER['REQUEST_URI'] . '&amp;forceSync=true" class="btn btn-warning">
+                        <i class="icon icon-refresh"></i> ' . $this->trans('Sync all products', [], 'Modules.Aismarttalk.Admin') . '
+                    </a>
+                </div>
+            </div>';
+        }
+
+        return $formOutput;
+    }
+
     public function hookDisplayFooter($params)
+    {
+        $position = Configuration::get('AI_SMART_TALK_IFRAME_POSITION');
+        if ($position === 'footer') {
+            return $this->renderIframe();
+        }
+        return '';
+    }
+
+    public function hookDisplayBeforeFooter($params)
+    {
+        $position = Configuration::get('AI_SMART_TALK_IFRAME_POSITION');
+        if ($position === 'before_footer') {
+            return $this->renderIframe();
+        }
+        return '';
+    }
+
+    private function renderIframe()
     {
         if (!Configuration::get('AI_SMART_TALK_ENABLED')) {
             return '';
@@ -409,7 +587,12 @@ class AiSmartTalk extends Module
     }
 
     public function hookActionProductUpdate($params)
-    {
+    {   
+        // Check if product sync is enabled
+        if (!(bool)Configuration::get('AI_SMART_TALK_PRODUCT_SYNC')) {
+            return;
+        }
+
         $idProduct = $params['id_product'];
         $currentQuantity = (int) StockAvailable::getQuantityAvailableByProduct($idProduct);
     
@@ -434,6 +617,11 @@ class AiSmartTalk extends Module
 
     public function hookActionProductCreate($params)
     {
+        // Check if product sync is enabled
+        if (!(bool)Configuration::get('AI_SMART_TALK_PRODUCT_SYNC')) {
+            return;
+        }
+
         $idProduct = $params['id_product'];
         $api = new SynchProductsToAiSmartTalk();
         $api(['productIds' => [(string) $idProduct], 'forceSync' => true]);
@@ -441,6 +629,11 @@ class AiSmartTalk extends Module
 
     public function hookActionProductDelete($params)
     {
+        // Check if product sync is enabled
+        if (!(bool)Configuration::get('AI_SMART_TALK_PRODUCT_SYNC')) {
+            return;
+        }
+
         $idProduct = $params['id_product'];
         $api = new CleanProductDocuments();
         $api(['productIds' => [(string) $idProduct]]);
@@ -448,6 +641,11 @@ class AiSmartTalk extends Module
 
     public function hookActionUpdateQuantity($params)
     {
+        // Check if product sync is enabled
+        if (!(bool)Configuration::get('AI_SMART_TALK_PRODUCT_SYNC')) {
+            return;
+        }
+
         if (!isset($params['id_product']) || !isset($params['quantity'])) {
             return;
         }
@@ -519,6 +717,7 @@ class AiSmartTalk extends Module
             'backofficeUrl' => $backofficeUrl,
             'chatModelId' => $chatModelId,
             'lang' => $lang,
+            'customerSyncEnabled' => (bool)Configuration::get('AI_SMART_TALK_CUSTOMER_SYNC'),
         ]);
 
         if ($this->isConfigured()) {
@@ -526,26 +725,11 @@ class AiSmartTalk extends Module
         }
     }
 
-    private function getConcentInfoIfNotConfigured()
-    {
-        if (!$this->isConfigured()) {
-            $this->context->smarty->assign([
-                'aiSmartTalkUrl' => Configuration::get('AI_SMART_TALK_URL'),
-                'enterParamsText' => $this->trans('Please enter the chat model parameters.', [], 'Modules.Aismarttalk.Admin'),
-                'accountText' => $this->trans('If you don\'t have an %s account yet, you can create one %s.', [], 'Modules.Aismarttalk.Admin'),
-                'hereText' => $this->trans('here', [], 'Modules.Aismarttalk.Admin'),
-            ]);
-
-            return $this->display(__FILE__, 'views/templates/admin/configuration-info.tpl');
-        }
-        return '';
-    }
 
     private function isConfigured()
     {
         return !empty(Configuration::get('CHAT_MODEL_ID'))
-            && !empty(Configuration::get('CHAT_MODEL_TOKEN'))
-            && empty(Configuration::get('AI_SMART_TALK_ERROR'));
+            && !empty(Configuration::get('CHAT_MODEL_TOKEN'));
     }
 
     private function handleForm()
@@ -560,7 +744,8 @@ class AiSmartTalk extends Module
             Configuration::updateValue('CHAT_MODEL_ID', Tools::getValue('CHAT_MODEL_ID'));
             Configuration::updateValue('CHAT_MODEL_TOKEN', Tools::getValue('CHAT_MODEL_TOKEN'));
 
-            $output = $this->sync(true, $output);
+            // Don't auto-sync anymore - let users choose
+            $output .= $this->displayConfirmation($this->trans('Settings updated. You can now enable product synchronization or use CSV import in AI SmartTalk.', [], 'Modules.Aismarttalk.Admin'));
         }
 
         return $output;

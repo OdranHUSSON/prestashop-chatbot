@@ -97,6 +97,76 @@
         <target>AI SmartTalk</target>
         <note>Line: </note>
       </trans-unit>
+      <trans-unit id="iframe_position_updated">
+        <source>Iframe position updated.</source>
+        <target>Position de l'iframe mise à jour.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="iframe_position_title">
+        <source>Iframe Position</source>
+        <target>Position de l'iframe</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="iframe_position_description">
+        <source>Choose where to display the chatbot iframe on your website.</source>
+        <target>Choisissez où afficher l'iframe du chatbot sur votre site web.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="iframe_position_footer">
+        <source>In Footer</source>
+        <target>Dans le footer</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="iframe_position_before_footer">
+        <source>Before Footer</source>
+        <target>Avant le footer</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="save_position_settings">
+        <source>Save Position Settings</source>
+        <target>Enregistrer les paramètres de position</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="settings_updated_no_sync">
+        <source>Settings updated. You can now enable product synchronization or use CSV import in AI SmartTalk.</source>
+        <target>Paramètres mis à jour. Vous pouvez maintenant activer la synchronisation des produits ou utiliser l'import CSV dans AI SmartTalk.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="product_sync_enabled">
+        <source>Product synchronization enabled. Products will automatically sync with AI SmartTalk.</source>
+        <target>Synchronisation des produits activée. Les produits se synchroniseront automatiquement avec AI SmartTalk.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="product_sync_disabled">
+        <source>Product synchronization disabled. You can use CSV import in AI SmartTalk instead.</source>
+        <target>Synchronisation des produits désactivée. Vous pouvez utiliser l'import CSV dans AI SmartTalk à la place.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="product_synchronization">
+        <source>Product Synchronization</source>
+        <target>Synchronisation des Produits</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="product_sync_description">
+        <source>Choose how to manage your product data in AI SmartTalk. You can either enable automatic synchronization or use CSV import in the AI SmartTalk interface.</source>
+        <target>Choisissez comment gérer vos données produits dans AI SmartTalk. Vous pouvez soit activer la synchronisation automatique, soit utiliser l'import CSV dans l'interface AI SmartTalk.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="enable_product_sync">
+        <source>Enable Product Synchronization</source>
+        <target>Activer la synchronisation des produits</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="product_sync_help">
+        <source>When enabled, products will automatically sync with AI SmartTalk when created, updated, or deleted. When disabled, you can use CSV import in AI SmartTalk.</source>
+        <target>Quand activé, les produits se synchroniseront automatiquement avec AI SmartTalk lors de leur création, modification ou suppression. Quand désactivé, vous pouvez utiliser l'import CSV dans AI SmartTalk.</target>
+        <note>Line: </note>
+      </trans-unit>
+      <trans-unit id="save_product_sync_settings">
+        <source>Save Product Sync Settings</source>
+        <target>Enregistrer les paramètres de synchronisation</target>
+        <note>Line: </note>
+      </trans-unit>
     </body>
   </file>
 </xliff>
