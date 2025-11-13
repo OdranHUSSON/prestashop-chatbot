@@ -16,7 +16,7 @@
 <div class="panel">
   <h3><i class="icon icon-cogs"></i> {l s='AI SmartTalk Configuration' mod='aismarttalk'}</h3>
   <div class="row">
-      <div class="col-md-6">
+      <div class="col-md-12">
           <div class="panel">
               <div class="panel-heading">
                   <h4>{l s='Customer Synchronization' mod='aismarttalk'}</h4>
@@ -48,21 +48,6 @@
                           </div>
                       </div>
                   </form>
-              </div>
-          </div>
-      </div>
-      <div class="col-md-6">
-          <div class="panel">
-              <div class="panel-heading">
-                  {l s='Product Synchronization' mod='aismarttalk'}
-              </div>
-              <div class="panel-body">
-                  <a href="{$smarty.server.REQUEST_URI|escape:'html':'UTF-8'}&amp;forceSync=false" class="btn btn-default">
-                      <i class="icon icon-refresh"></i> {l s='Synchronize New Products' mod='aismarttalk'}
-                  </a>
-                  <a href="{$smarty.server.REQUEST_URI|escape:'html':'UTF-8'}&amp;forceSync=true" class="btn btn-default">
-                      <i class="icon icon-refresh"></i> {l s='Re-Synchronize All Products' mod='aismarttalk'}
-                  </a>
               </div>
           </div>
       </div>
