@@ -2,7 +2,7 @@ version: '3'
 services:
   prestashop:
     container_name: prestashop
-    image: prestashop/prestashop
+    image: prestashop/prestashop:9.0.1
     platform: linux/amd64
     ports:
       - 80:80
@@ -43,6 +43,7 @@ services:
   phpmyadmin:
     container_name: phpmyadmin
     image: phpmyadmin/phpmyadmin
+    platform: linux/amd64
     ports:
       - 8080:80
     environment:
