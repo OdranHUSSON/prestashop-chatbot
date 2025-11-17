@@ -30,7 +30,7 @@ class AiSmartTalk extends Module
     {
         $this->name = 'aismarttalk';
         $this->tab = 'front_office_features';
-        $this->version = '2.3.0';
+        $this->version = '2.3.2';
         $this->author = 'AI SmartTalk';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = [
@@ -111,7 +111,7 @@ class AiSmartTalk extends Module
     {
         $hooks = [
             'displayFooter',
-            'displayBeforeFooter',
+            'displayBeforeBodyClosingTag',
             'actionProductUpdate',
             'actionProductCreate',
             'actionProductDelete',
@@ -138,7 +138,7 @@ class AiSmartTalk extends Module
     {
         return parent::uninstall()
             && $this->unregisterHook('displayFooter')
-            && $this->unregisterHook('displayBeforeFooter')
+            && $this->unregisterHook('displayBeforeBodyClosingTag')
             && $this->unregisterHook('actionProductUpdate')
             && $this->unregisterHook('actionProductCreate')
             && $this->unregisterHook('actionProductDelete')
@@ -550,7 +550,7 @@ class AiSmartTalk extends Module
         return '';
     }
 
-    public function hookDisplayBeforeFooter($params)
+    public function hookDisplayBeforeBodyClosingTag($params)
     {
         $position = Configuration::get('AI_SMART_TALK_IFRAME_POSITION');
         if ($position === 'before_footer') {
